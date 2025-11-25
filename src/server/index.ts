@@ -35,6 +35,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Serve static files from ui/public directory
+app.use(express.static(path.join(__dirname, '../../ui/public')));
+
 // Type for monitored commits with analysis
 interface MonitoredCommit {
   commit: any;
