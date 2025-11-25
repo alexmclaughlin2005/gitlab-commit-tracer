@@ -13,6 +13,7 @@ import { CommitTracer } from '../tracing';
 import { CommitAnalyzer } from '../analysis';
 import { FeedMonitor, CommitProcessor, monitorConfig } from '../monitoring';
 import type { CommitChain } from '../tracing/types';
+import type { AnalysisResult, StakeholderUpdate } from '../analysis/types';
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Type for monitored commits with analysis
+interface MonitoredCommit {
+  commit: any;
+  chain?: CommitChain;
+  analysis?: AnalysisResult;
+  updates?: StakeholderUpdate;
+}
+
 // Initialize GitLab client and analyzer
 let gitlabClient: GitLabClient | null = null;
 let commitTracer: CommitTracer | null = null;
@@ -41,7 +50,7 @@ let commitAnalyzer: CommitAnalyzer | null = null;
 // Initialize monitoring system
 let feedMonitor: FeedMonitor | null = null;
 let commitProcessor: CommitProcessor | null = null;
-const monitoredCommits: Map<string, { commit: any; chain?: CommitChain }> = new Map();
+const monitoredCommits: Map<string, MonitoredCommit> = new Map();
 
 function getClient(): GitLabClient {
   if (!gitlabClient) {
