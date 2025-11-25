@@ -875,22 +875,6 @@
 
             const html = `
                 ${contextHeader}
-                <div class="update-box technical">
-                    <div class="update-box-header">
-                        <span class="icon">📋</span>
-                        <span>CPO Update</span>
-                        <span style="font-size: 0.85em; font-weight: normal; color: #7f8c8d;">
-                            (For: CPO, Product Leaders, Developers, PMs, Architects)
-                        </span>
-                        <button class="copy-btn" onclick="copyToClipboard('tech-${commitId}', this)">
-                            Copy
-                        </button>
-                    </div>
-                    <div class="update-box-content" id="tech-${commitId}">
-                        ${escapeHtml(data.updates.technicalUpdate)}
-                    </div>
-                </div>
-
                 <div class="update-box business">
                     <div class="update-box-header">
                         <span class="icon">💼</span>
@@ -1220,19 +1204,10 @@
 
                             ${hasUpdates ? `
                                 <div style="margin-top: 15px;">
-                                    <div style="margin-bottom: 15px;">
-                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                            <span style="font-weight: 600; color: #667eea;">👨‍💻 Technical Update</span>
-                                            ${item.analysis ? `<span style="font-size: 0.85em; color: #7f8c8d;">Confidence: ${(item.analysis.confidence * 100).toFixed(0)}%</span>` : ''}
-                                        </div>
-                                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #667eea; font-size: 0.9em; line-height: 1.5;">
-                                            ${escapeHtml(item.updates.technicalUpdate)}
-                                        </div>
-                                    </div>
-
                                     <div>
                                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                             <span style="font-weight: 600; color: #28a745;">💼 Business Update</span>
+                                            ${item.analysis ? `<span style="font-size: 0.85em; color: #7f8c8d;">Confidence: ${(item.analysis.confidence * 100).toFixed(0)}%</span>` : ''}
                                         </div>
                                         <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #28a745; font-size: 0.9em; line-height: 1.5;">
                                             ${escapeHtml(item.updates.businessUpdate)}
