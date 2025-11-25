@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epics View - GitLab Commit Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .nav a.active {
+            background: rgba(255,255,255,0.4);
+            font-weight: 600;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .epic-list {
+            list-style: none;
+        }
+
+        .epic-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .epic-item:hover {
+            background: #f8f9fa;
+            border-left-color: #667eea;
+        }
+
+        .epic-item.active {
+            background: #e3f2fd;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .epic-item.opened {
+            border-left-color: #28a745;
+        }
+
+        .epic-item.closed {
+            border-left-color: #6c757d;
+            opacity: 0.8;
+        }
+
+        .epic-name {
+            font-size: 1.05em;
+            color: #2c3e50;
+        }
+
+        .epic-iid {
+            font-size: 0.85em;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .epic-stats {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+
+        .state-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .state-badge.opened {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .state-badge.closed {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 600px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .content-header h2 {
+            color: #667eea;
+            font-size: 1.8em;
+        }
+
+        .epic-description {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 0.95em;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .epic-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .commit-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .commit-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .commit-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .commit-meta {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .commit-meta a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .commit-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .update-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #28a745;
+        }
+
+        .update-preview-header {
+            font-weight: 600;
+            color: #28a745;
+            margin-bottom: 8px;
+        }
+
+        .update-preview-content {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #2c3e50;
+        }
+
+        .page-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>📊 Epics View</h1>
+            <p>Browse commits organized by epic/project</p>
+            <div class="nav">
+                <a href="index.html">🏠 Home</a>
+                <a href="teams.html">👥 Teams</a>
+                <a href="epics.html" class="active">📊 Epics</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="layout">
+            <!-- Sidebar with epic list -->
+            <div class="sidebar">
+                <h3>Epics</h3>
+
+                <div class="filter-section">
+                    <div class="filter-label">Filter by State</div>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" onclick="filterByState(null)">All</button>
+                        <button class="filter-btn" onclick="filterByState('opened')">Opened</button>
+                        <button class="filter-btn" onclick="filterByState('closed')">Closed</button>
+                    </div>
+                </div>
+
+                <div id="epicList" class="epic-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading epics...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content area -->
+            <div class="main-content">
+                <div id="mainContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>Select an Epic</h3>
+                        <p>Choose an epic from the sidebar to view its commits and updates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Environment-aware API URL
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:3005/api'
+            : 'https://web-production-7418.up.railway.app/api';
+
+        let allEpics = [];
+        let filteredEpics = [];
+        let selectedEpic = null;
+        let currentFilter = null;
+        let currentPage = 0;
+        const PAGE_SIZE = 20;
+
+        // Load epics on page load
+        window.addEventListener('load', loadEpics);
+
+        async function loadEpics() {
+            try {
+                const response = await fetch(`${API_BASE}/history/epics`);
+                const data = await response.json();
+                allEpics = data.epics;
+                filteredEpics = allEpics;
+                renderEpicList();
+            } catch (error) {
+                console.error('Failed to load epics:', error);
+                document.getElementById('epicList').innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                        Failed to load epics<br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        function filterByState(state) {
+            currentFilter = state;
+
+            // Update filter button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter epics
+            if (state) {
+                filteredEpics = allEpics.filter(e => e.state === state);
+            } else {
+                filteredEpics = allEpics;
+            }
+
+            renderEpicList();
+        }
+
+        function renderEpicList() {
+            const epicListDiv = document.getElementById('epicList');
+
+            if (filteredEpics.length === 0) {
+                const message = currentFilter
+                    ? `No ${currentFilter} epics found`
+                    : 'No epics found';
+
+                epicListDiv.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">📭</div>
+                        <p>${message}</p>
+                        <small>Epics will appear here once commits are processed</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = filteredEpics.map(epic => `
+                <div class="epic-item ${epic.state} ${selectedEpic && selectedEpic.id === epic.id ? 'active' : ''}"
+                     onclick="selectEpic(${epic.id})">
+                    <div>
+                        <span class="epic-iid">&${epic.iid}</span>
+                        <span class="state-badge ${epic.state}">${epic.state}</span>
+                    </div>
+                    <div class="epic-name">${escapeHtml(epic.title)}</div>
+                    ${epic.updatedAt ? `
+                        <div class="epic-stats">
+                            Updated ${new Date(epic.updatedAt).toLocaleDateString()}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            epicListDiv.innerHTML = html;
+        }
+
+        async function selectEpic(epicId) {
+            selectedEpic = allEpics.find(e => e.id === epicId);
+            currentPage = 0;
+            renderEpicList();
+            await loadEpicData();
+        }
+
+        async function loadEpicData() {
+            const mainContent = document.getElementById('mainContent');
+
+            mainContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading commits for ${selectedEpic.title}...</p>
+                </div>
+            `;
+
+            try {
+                // Load commits and updates in parallel
+                const [commitsResponse, updatesResponse] = await Promise.all([
+                    fetch(`${API_BASE}/history/epics/${selectedEpic.id}/commits?limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`),
+                    fetch(`${API_BASE}/history/epics/${selectedEpic.id}/updates?limit=100&type=business`)
+                ]);
+
+                const commitsData = await commitsResponse.json();
+                const updatesData = await updatesResponse.json();
+
+                // Create a map of updates by commit SHA
+                const updatesByCommit = {};
+                updatesData.updates.forEach(update => {
+                    updatesByCommit[update.commitSha] = update;
+                });
+
+                renderEpicContent(commitsData.commits, updatesByCommit);
+            } catch (error) {
+                console.error('Failed to load epic data:', error);
+                mainContent.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center; color: #e74c3c;">
+                        <h3>Failed to load data</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadEpicData()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderEpicContent(commits, updatesByCommit) {
+            const mainContent = document.getElementById('mainContent');
+
+            if (commits.length === 0) {
+                mainContent.innerHTML = `
+                    <div class="content-header">
+                        <div>
+                            <h2><span class="epic-iid">&${selectedEpic.iid}</span> ${escapeHtml(selectedEpic.title)}</h2>
+                            <span class="state-badge ${selectedEpic.state}">${selectedEpic.state}</span>
+                        </div>
+                        <div>
+                            <a href="${selectedEpic.webUrl}" target="_blank" style="color: #667eea; text-decoration: none;">
+                                View in GitLab →
+                            </a>
+                        </div>
+                    </div>
+
+                    ${selectedEpic.description ? `
+                        <div class="epic-description">
+                            ${escapeHtml(selectedEpic.description)}
+                        </div>
+                    ` : ''}
+
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No Commits Yet</h3>
+                        <p>This epic hasn't had any commits tracked yet.<br>
+                        Commits will appear here once they're processed by the monitoring system.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const commitsHtml = commits.map(commit => {
+                const update = updatesByCommit[commit.sha];
+                const commitDate = new Date(commit.authoredDate || commit.discoveredAt);
+
+                return `
+                    <div class="commit-card">
+                        <div class="commit-header">
+                            <div style="flex: 1;">
+                                <div class="commit-title">${escapeHtml(commit.title)}</div>
+                                <div class="commit-meta">
+                                    <a href="${commit.webUrl}" target="_blank">${commit.shortId || commit.sha.substring(0, 8)}</a>
+                                    • ${escapeHtml(commit.authorName || 'Unknown')}
+                                    • ${commitDate.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+
+                        ${update ? `
+                            <div class="update-preview">
+                                <div class="update-preview-header">💼 Business Update</div>
+                                <div class="update-preview-content">${escapeHtml(update.content)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const paginationHtml = commits.length === PAGE_SIZE ? `
+                <div class="pagination">
+                    <button class="page-btn" onclick="previousPage()" ${currentPage === 0 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                    <span style="padding: 8px 16px; color: #7f8c8d;">
+                        Page ${currentPage + 1}
+                    </span>
+                    <button class="page-btn" onclick="nextPage()">
+                        Next →
+                    </button>
+                </div>
+            ` : '';
+
+            mainContent.innerHTML = `
+                <div class="content-header">
+                    <div>
+                        <h2><span class="epic-iid">&${selectedEpic.iid}</span> ${escapeHtml(selectedEpic.title)}</h2>
+                        <span class="state-badge ${selectedEpic.state}">${selectedEpic.state}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <a href="${selectedEpic.webUrl}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 0.9em;">
+                            View in GitLab →
+                        </a>
+                        <button onclick="loadEpicData()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                ${selectedEpic.description ? `
+                    <div class="epic-description">
+                        ${escapeHtml(selectedEpic.description)}
+                    </div>
+                ` : ''}
+
+                <div class="epic-meta">
+                    <div><strong>Created:</strong> ${new Date(selectedEpic.createdAt).toLocaleDateString()}</div>
+                    <div><strong>Updated:</strong> ${new Date(selectedEpic.updatedAt).toLocaleDateString()}</div>
+                    ${selectedEpic.authorName ? `<div><strong>Author:</strong> ${escapeHtml(selectedEpic.authorName)}</div>` : ''}
+                </div>
+
+                <div style="margin-bottom: 20px; color: #7f8c8d; font-size: 0.9em;">
+                    Showing ${commits.length} commit${commits.length !== 1 ? 's' : ''}
+                </div>
+
+                ${commitsHtml}
+                ${paginationHtml}
+            `;
+        }
+
+        function nextPage() {
+            currentPage++;
+            loadEpicData();
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                loadEpicData();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

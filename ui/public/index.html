@@ -42,6 +42,77 @@
             opacity: 0.9;
         }
 
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .nav-dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: white;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .nav-dropdown:hover .nav-dropdown-content {
+            display: block;
+        }
+
+        .nav-dropdown-content a {
+            color: #2c3e50;
+            padding: 12px 20px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .nav-dropdown-content a:last-child {
+            border-bottom: none;
+        }
+
+        .nav-dropdown-content a:hover {
+            background: #f8f9fa;
+            padding-left: 25px;
+        }
+
+        .nav-icon {
+            font-size: 1.2em;
+        }
+
         .status-banner {
             background: white;
             padding: 15px 20px;
@@ -409,8 +480,32 @@
 <body>
     <header>
         <div class="container">
-            <h1>🔍 GitLab Commit Tracer</h1>
-            <p>Trace commits through their complete development lifecycle</p>
+            <div class="header-nav">
+                <div>
+                    <h1>🔍 GitLab Commit Tracer</h1>
+                    <p>Trace commits through their complete development lifecycle</p>
+                </div>
+                <div class="nav-dropdown">
+                    <button class="nav-btn">
+                        <span>📑 Browse History</span>
+                        <span>▼</span>
+                    </button>
+                    <div class="nav-dropdown-content">
+                        <a href="index.html">
+                            <span class="nav-icon">🏠</span>
+                            <span>Home</span>
+                        </a>
+                        <a href="teams.html">
+                            <span class="nav-icon">👥</span>
+                            <span>Teams View</span>
+                        </a>
+                        <a href="epics.html">
+                            <span class="nav-icon">📊</span>
+                            <span>Epics View</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 

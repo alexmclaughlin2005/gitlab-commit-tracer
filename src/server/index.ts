@@ -14,6 +14,7 @@ import { CommitAnalyzer } from '../analysis';
 import { FeedMonitor, CommitProcessor, monitorConfig } from '../monitoring';
 import type { CommitChain } from '../tracing/types';
 import type { AnalysisResult, StakeholderUpdate } from '../analysis/types';
+import { persistCommitChain } from '../db/services/commit-persistence';
 
 // Load environment variables
 dotenv.config();
@@ -110,7 +111,7 @@ function getMonitor(): FeedMonitor {
         if (existing) {
           existing.chain = chain;
 
-          // Automatically generate stakeholder updates (fire-and-forget for parallel processing)
+          // Automatically generate stakeholder updates and persist to database (fire-and-forget for parallel processing)
           (async () => {
             try {
               console.log(`🤖 Generating stakeholder updates for ${event.commit.sha.substring(0, 8)}...`);
@@ -124,6 +125,15 @@ function getMonitor(): FeedMonitor {
               console.log(`✨ Generated updates for ${event.commit.sha.substring(0, 8)}`);
               console.log(`   Technical: ${analysisResult.updates.technicalUpdate.substring(0, 80)}...`);
               console.log(`   Business: ${analysisResult.updates.businessUpdate.substring(0, 80)}...`);
+
+              // Persist to database
+              await persistCommitChain({
+                commitSha: event.commit.sha,
+                projectId: event.commit.projectId,
+                chain,
+                analysis: analysisResult.analysis,
+                updates: analysisResult.updates,
+              });
             } catch (error) {
               console.error(
                 `❌ Failed to generate updates for ${event.commit.sha.substring(0, 8)}:`,
@@ -354,6 +364,285 @@ app.post('/api/analyze/updates', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error generating updates:', error);
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// Historical Data API Routes
+// =============================================================================
+
+/**
+ * GET /api/history/teams
+ * Get all teams
+ */
+app.get('/api/history/teams', async (_req: Request, res: Response) => {
+  try {
+    const { getAllTeams } = await import('../db/repositories/team-repository');
+    const teams = await getAllTeams();
+    res.json({ teams });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/teams/:id
+ * Get a specific team
+ */
+app.get('/api/history/teams/:id', async (req: Request, res: Response) => {
+  try {
+    const { getTeamById } = await import('../db/repositories/team-repository');
+    const teamId = parseInt(req.params.id);
+    const team = await getTeamById(teamId);
+
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    res.json(team);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/teams/:id/commits
+ * Get commits by team
+ */
+app.get('/api/history/teams/:id/commits', async (req: Request, res: Response) => {
+  try {
+    const { getCommitsByTeam } = await import('../db/repositories/commit-repository');
+    const teamId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const commits = await getCommitsByTeam(teamId, { limit, offset });
+
+    res.json({
+      commits,
+      pagination: {
+        limit,
+        offset,
+        count: commits.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/teams/:id/updates
+ * Get stakeholder updates for a team
+ */
+app.get('/api/history/teams/:id/updates', async (req: Request, res: Response) => {
+  try {
+    const { searchUpdates } = await import('../db/repositories/update-repository');
+    const teamId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const updateType = req.query.type as 'technical' | 'business' | undefined;
+
+    const updates = await searchUpdates({
+      teamIds: [teamId],
+      updateType,
+      limit,
+      offset,
+    });
+
+    res.json({
+      updates,
+      pagination: {
+        limit,
+        offset,
+        count: updates.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/epics
+ * Get all epics
+ */
+app.get('/api/history/epics', async (req: Request, res: Response) => {
+  try {
+    const { getAllEpics, getEpicsByState } = await import('../db/repositories/gitlab-entity-repository');
+    const state = req.query.state as string | undefined;
+
+    const epics = state ? await getEpicsByState(state) : await getAllEpics();
+
+    res.json({ epics });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/epics/:id
+ * Get a specific epic
+ */
+app.get('/api/history/epics/:id', async (req: Request, res: Response) => {
+  try {
+    const { getEpicById } = await import('../db/repositories/gitlab-entity-repository');
+    const epicId = parseInt(req.params.id);
+    const epic = await getEpicById(epicId);
+
+    if (!epic) {
+      return res.status(404).json({ error: 'Epic not found' });
+    }
+
+    res.json(epic);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/epics/:id/commits
+ * Get commits by epic
+ */
+app.get('/api/history/epics/:id/commits', async (req: Request, res: Response) => {
+  try {
+    const { getCommitsByEpic } = await import('../db/repositories/commit-repository');
+    const epicId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const commits = await getCommitsByEpic(epicId, { limit, offset });
+
+    res.json({
+      commits,
+      pagination: {
+        limit,
+        offset,
+        count: commits.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/epics/:id/updates
+ * Get stakeholder updates for an epic
+ */
+app.get('/api/history/epics/:id/updates', async (req: Request, res: Response) => {
+  try {
+    const { searchUpdates } = await import('../db/repositories/update-repository');
+    const epicId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const updateType = req.query.type as 'technical' | 'business' | undefined;
+
+    const updates = await searchUpdates({
+      epicIds: [epicId],
+      updateType,
+      limit,
+      offset,
+    });
+
+    res.json({
+      updates,
+      pagination: {
+        limit,
+        offset,
+        count: updates.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/commits
+ * Search/filter commits
+ */
+app.get('/api/history/commits', async (req: Request, res: Response) => {
+  try {
+    const { searchCommits } = await import('../db/repositories/commit-repository');
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const projectId = req.query.projectId as string | undefined;
+    const authorEmail = req.query.authorEmail as string | undefined;
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+    const commits = await searchCommits({
+      projectId,
+      authorEmail,
+      startDate,
+      endDate,
+      limit,
+      offset,
+    });
+
+    res.json({
+      commits,
+      pagination: {
+        limit,
+        offset,
+        count: commits.length,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/commits/:sha
+ * Get a commit with its full chain and updates
+ */
+app.get('/api/history/commits/:sha', async (req: Request, res: Response) => {
+  try {
+    const { getCommitBySha, getCommitChainBySha } = await import('../db/repositories/commit-repository');
+    const { getUpdatesByCommit } = await import('../db/repositories/update-repository');
+    const { getAnalysesByCommit } = await import('../db/repositories/analysis-repository');
+
+    const commit = await getCommitBySha(req.params.sha);
+
+    if (!commit) {
+      return res.status(404).json({ error: 'Commit not found' });
+    }
+
+    const chain = await getCommitChainBySha(req.params.sha);
+    const updates = await getUpdatesByCommit(req.params.sha);
+    const analyses = await getAnalysesByCommit(req.params.sha);
+
+    res.json({
+      commit,
+      chain,
+      updates,
+      analyses,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/history/updates/recent
+ * Get recent stakeholder updates
+ */
+app.get('/api/history/updates/recent', async (req: Request, res: Response) => {
+  try {
+    const { getRecentUpdates } = await import('../db/repositories/update-repository');
+    const limit = parseInt(req.query.limit as string) || 50;
+    const updateType = req.query.type as 'technical' | 'business' | undefined;
+
+    const updates = await getRecentUpdates(limit, updateType);
+
+    res.json({
+      updates,
+      count: updates.length,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

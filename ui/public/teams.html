@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams View - GitLab Commit Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .nav a.active {
+            background: rgba(255,255,255,0.4);
+            font-weight: 600;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .team-list {
+            list-style: none;
+        }
+
+        .team-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .team-item:hover {
+            background: #f8f9fa;
+            border-left-color: #667eea;
+        }
+
+        .team-item.active {
+            background: #e3f2fd;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .team-name {
+            font-size: 1.05em;
+            color: #2c3e50;
+        }
+
+        .team-stats {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 600px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .content-header h2 {
+            color: #667eea;
+            font-size: 1.8em;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .commit-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .commit-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .commit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .commit-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .commit-meta {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .commit-meta a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .commit-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .commit-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9em;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #7f8c8d;
+        }
+
+        .stat-item strong {
+            color: #2c3e50;
+        }
+
+        .update-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #28a745;
+        }
+
+        .update-preview-header {
+            font-weight: 600;
+            color: #28a745;
+            margin-bottom: 8px;
+        }
+
+        .update-preview-content {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #2c3e50;
+        }
+
+        .page-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>👥 Teams View</h1>
+            <p>Browse commits organized by team</p>
+            <div class="nav">
+                <a href="index.html">🏠 Home</a>
+                <a href="teams.html" class="active">👥 Teams</a>
+                <a href="epics.html">📊 Epics</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="layout">
+            <!-- Sidebar with team list -->
+            <div class="sidebar">
+                <h3>Teams</h3>
+                <div id="teamList" class="team-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading teams...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content area -->
+            <div class="main-content">
+                <div id="mainContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <h3>Select a Team</h3>
+                        <p>Choose a team from the sidebar to view their commits and updates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Environment-aware API URL
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:3005/api'
+            : 'https://web-production-7418.up.railway.app/api';
+
+        let teams = [];
+        let selectedTeam = null;
+        let currentPage = 0;
+        const PAGE_SIZE = 20;
+
+        // Load teams on page load
+        window.addEventListener('load', loadTeams);
+
+        async function loadTeams() {
+            try {
+                const response = await fetch(`${API_BASE}/history/teams`);
+                const data = await response.json();
+                teams = data.teams;
+                renderTeamList();
+            } catch (error) {
+                console.error('Failed to load teams:', error);
+                document.getElementById('teamList').innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                        Failed to load teams<br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        function renderTeamList() {
+            const teamListDiv = document.getElementById('teamList');
+
+            if (teams.length === 0) {
+                teamListDiv.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">📭</div>
+                        <p>No teams found</p>
+                        <small>Teams will appear here once commits with team:: labels are processed</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = teams.map(team => `
+                <div class="team-item ${selectedTeam && selectedTeam.id === team.id ? 'active' : ''}"
+                     onclick="selectTeam(${team.id})">
+                    <div class="team-name">${escapeHtml(team.displayName || team.name)}</div>
+                    ${team.description ? `<div class="team-stats">${escapeHtml(team.description)}</div>` : ''}
+                </div>
+            `).join('');
+
+            teamListDiv.innerHTML = `<ul class="team-list">${html}</ul>`;
+        }
+
+        async function selectTeam(teamId) {
+            selectedTeam = teams.find(t => t.id === teamId);
+            currentPage = 0;
+            renderTeamList();
+            await loadTeamData();
+        }
+
+        async function loadTeamData() {
+            const mainContent = document.getElementById('mainContent');
+
+            mainContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading commits for ${selectedTeam.displayName || selectedTeam.name}...</p>
+                </div>
+            `;
+
+            try {
+                // Load commits and updates in parallel
+                const [commitsResponse, updatesResponse] = await Promise.all([
+                    fetch(`${API_BASE}/history/teams/${selectedTeam.id}/commits?limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`),
+                    fetch(`${API_BASE}/history/teams/${selectedTeam.id}/updates?limit=100&type=business`)
+                ]);
+
+                const commitsData = await commitsResponse.json();
+                const updatesData = await updatesResponse.json();
+
+                // Create a map of updates by commit SHA
+                const updatesByCommit = {};
+                updatesData.updates.forEach(update => {
+                    updatesByCommit[update.commitSha] = update;
+                });
+
+                renderTeamContent(commitsData.commits, updatesByCommit);
+            } catch (error) {
+                console.error('Failed to load team data:', error);
+                mainContent.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center; color: #e74c3c;">
+                        <h3>Failed to load data</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadTeamData()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderTeamContent(commits, updatesByCommit) {
+            const mainContent = document.getElementById('mainContent');
+
+            if (commits.length === 0) {
+                mainContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No Commits Yet</h3>
+                        <p>This team hasn't had any commits tracked yet.<br>
+                        Commits will appear here once they're processed by the monitoring system.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const commitsHtml = commits.map(commit => {
+                const update = updatesByCommit[commit.sha];
+                const commitDate = new Date(commit.authoredDate || commit.discoveredAt);
+
+                return `
+                    <div class="commit-card">
+                        <div class="commit-header">
+                            <div style="flex: 1;">
+                                <div class="commit-title">${escapeHtml(commit.title)}</div>
+                                <div class="commit-meta">
+                                    <a href="${commit.webUrl}" target="_blank">${commit.shortId || commit.sha.substring(0, 8)}</a>
+                                    • ${escapeHtml(commit.authorName || 'Unknown')}
+                                    • ${commitDate.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+
+                        ${update ? `
+                            <div class="update-preview">
+                                <div class="update-preview-header">💼 Business Update</div>
+                                <div class="update-preview-content">${escapeHtml(update.content)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const paginationHtml = commits.length === PAGE_SIZE ? `
+                <div class="pagination">
+                    <button class="page-btn" onclick="previousPage()" ${currentPage === 0 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                    <span style="padding: 8px 16px; color: #7f8c8d;">
+                        Page ${currentPage + 1}
+                    </span>
+                    <button class="page-btn" onclick="nextPage()">
+                        Next →
+                    </button>
+                </div>
+            ` : '';
+
+            mainContent.innerHTML = `
+                <div class="content-header">
+                    <div>
+                        <h2>${escapeHtml(selectedTeam.displayName || selectedTeam.name)}</h2>
+                        ${selectedTeam.description ? `<p style="color: #7f8c8d; margin-top: 5px;">${escapeHtml(selectedTeam.description)}</p>` : ''}
+                    </div>
+                    <div class="filter-controls">
+                        <button onclick="loadTeamData()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px; color: #7f8c8d; font-size: 0.9em;">
+                    Showing ${commits.length} commit${commits.length !== 1 ? 's' : ''}
+                </div>
+
+                ${commitsHtml}
+                ${paginationHtml}
+            `;
+        }
+
+        function nextPage() {
+            currentPage++;
+            loadTeamData();
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                loadTeamData();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
