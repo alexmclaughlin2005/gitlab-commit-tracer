@@ -2,24 +2,29 @@
 
 ## Project Overview
 
-This application monitors GitLab repositories for commits and traces them through the development chain (Commit → Merge Request → Issue → Epic) to provide AI-powered context analysis about the reason for each commit and its impact on the overall project.
+This application automatically monitors GitLab repositories for commits, traces them through the development chain (Commit → Merge Request → Issue → Epic), and uses AI to generate stakeholder updates for both technical and business audiences. It's deployed in production with a split architecture: backend on Railway, frontend on Vercel.
 
 ## Core Functionality
 
-1. **GitLab API Integration**: Monitor repositories for new commits
-2. **Relationship Tracing**: Link commits → MRs → Issues → Epics
-3. **Context Analysis**: Use AI to understand:
-   - Why the commit was made
-   - What problem it solves
-   - Its impact on the overall project goals
-4. **Data Persistence**: Store relationship chains and analysis results
+1. **Automatic Monitoring**: Continuously poll GitLab repositories for new commits (5-minute intervals)
+2. **Relationship Tracing**: Link commits → MRs → Issues → Epics with queue-based processing
+3. **AI Analysis**: Use OpenAI GPT-4o to analyze commits and generate:
+   - Technical updates (for developers, PMs, architects)
+   - Business updates (for marketing, sales, support, executives)
+   - Confidence scoring and alignment assessment
+4. **Web Dashboard**: Real-time UI with monitoring controls and commit feed
+5. **Production Deployment**: Split architecture (Railway backend + Vercel frontend)
 
 ## Technology Stack
 
 - **Language**: TypeScript/Node.js
+- **Backend**: Express server on Railway
+- **Frontend**: Static HTML/CSS/JS on Vercel
 - **GitLab API**: REST API v4
-- **AI Integration**: OpenAI GPT-5 (via Responses API)
-- **Storage**: (To be determined - database choice)
+- **AI Integration**: OpenAI GPT-4o
+- **Storage**: In-memory (future: Supabase PostgreSQL)
+- **Monitoring**: FeedMonitor with 5-minute polling
+- **Processing**: CommitProcessor queue (3 concurrent slots)
 
 ## Project Structure
 
@@ -27,6 +32,7 @@ This application monitors GitLab repositories for commits and traces them throug
 /
 ├── AI_INSTRUCTIONS.md          # This file - master guide for AI agents
 ├── README.md                   # User-facing project documentation
+├── DEPLOYMENT.md               # Production deployment guide
 ├── docs/                       # Detailed documentation
 │   ├── architecture.md         # System architecture
 │   ├── gitlab-api.md          # GitLab API integration guide
@@ -34,10 +40,14 @@ This application monitors GitLab repositories for commits and traces them throug
 ├── src/                       # Source code
 │   ├── api/                   # GitLab API client
 │   ├── tracing/               # Commit-to-epic tracing logic
-│   ├── analysis/              # AI context analysis
-│   ├── storage/               # Data persistence layer
-│   └── index.ts               # Main entry point
+│   ├── analysis/              # AI context analysis (OpenAI)
+│   ├── monitoring/            # FeedMonitor & CommitProcessor
+│   ├── server/                # Express REST API server
+│   └── index.ts               # CLI entry point
+├── ui/                        # Frontend
+│   └── public/                # Static web dashboard
 ├── config/                    # Configuration files
+│   └── projects.json          # Monitored projects configuration
 └── tests/                     # Test suite
 
 ```
@@ -114,8 +124,8 @@ When making changes:
 - `examples/tracing-example.ts` - Working example
 
 ### Phase 3: AI Analysis ✅ COMPLETED
-- [x] AI provider selection (OpenAI GPT-5)
-- [x] OpenAI Responses API integration
+- [x] AI provider selection (OpenAI GPT-4o)
+- [x] OpenAI integration with structured outputs
 - [x] Context extraction from GitLab data
 - [x] Prompt engineering for analysis
 - [x] Impact analysis implementation
@@ -123,20 +133,56 @@ When making changes:
 - [x] Batch analysis support
 - [x] Cost tracking and reporting
 - [x] Pluggable provider interface
+- [x] Stakeholder update generation (technical + business)
 
 **Key Files Implemented**:
 - `src/analysis/types.ts` - Complete type definitions for analysis
-- `src/analysis/openai-provider.ts` - OpenAI GPT-5 provider (200+ lines)
-- `src/analysis/commit-analyzer.ts` - CommitAnalyzer class (300+ lines)
+- `src/analysis/openai-provider.ts` - OpenAI GPT-4o provider (300+ lines)
+- `src/analysis/commit-analyzer.ts` - CommitAnalyzer class (400+ lines)
 - `src/analysis/index.ts` - Module exports
 - `src/analysis/README.md` - Comprehensive usage documentation
 - `examples/analysis-example.ts` - Working examples
+- `examples/stakeholder-updates-example.ts` - Update generation examples
 
-### Phase 4: Enhancement
-- [ ] Real-time monitoring loop
-- [ ] Webhook support
-- [ ] Dashboard/reporting
-- [ ] Configuration management
+### Phase 4: Monitoring & Deployment ✅ COMPLETED
+- [x] Real-time monitoring implementation
+  - [x] FeedMonitor with 5-minute polling
+  - [x] Multi-project configuration support
+  - [x] Event-driven architecture (EventEmitter)
+  - [x] Automatic commit detection and processing
+- [x] Queue-based processing
+  - [x] CommitProcessor with 3 concurrent slots
+  - [x] Fire-and-forget parallel AI analysis
+  - [x] Progress tracking and statistics
+- [x] Web Dashboard
+  - [x] Monitoring controls (start/stop/poll)
+  - [x] Real-time commit feed display
+  - [x] Manual tracing interface
+  - [x] Automatic update generation and display
+  - [x] Status monitoring with auto-refresh
+- [x] Production Deployment
+  - [x] Backend deployment on Railway
+  - [x] Frontend deployment on Vercel
+  - [x] CORS configuration for split architecture
+  - [x] Environment-based API configuration
+  - [x] Automatic redeployment on git push
+
+**Key Files Implemented**:
+- `src/monitoring/feed-monitor.ts` - FeedMonitor class (500+ lines)
+- `src/monitoring/commit-processor.ts` - CommitProcessor queue (300+ lines)
+- `src/monitoring/types.ts` - Monitoring type definitions
+- `src/server/index.ts` - Express API server (400+ lines)
+- `ui/public/index.html` - Web dashboard (1300+ lines)
+- `config/projects.json` - Project configuration
+- `railway.json` - Railway deployment config
+- `DEPLOYMENT.md` - Deployment documentation
+
+### Phase 5: Enhancement (Next)
+- [ ] Persistent storage with Supabase
+- [ ] Historical commit analytics
+- [ ] Webhook support for real-time updates
+- [ ] Advanced reporting and insights
+- [ ] Multi-tenant support
 
 ## Quick Reference for New AI Agents
 
@@ -220,19 +266,26 @@ for (const mr of mrs) {
 
 ## Current Status
 
-**Phase**: Phase 3 - AI Analysis ✅ COMPLETED
-**Last Updated**: 2025-11-24
-**Status**: AI-powered commit analysis fully implemented using OpenAI GPT-5
+**Phase**: Phase 4 - Monitoring & Deployment ✅ COMPLETED
+**Last Updated**: 2025-11-25
+**Status**: Production deployed with automatic monitoring and AI-powered updates
+
+**Live Deployment**:
+- Backend: Railway (https://web-production-7418.up.railway.app)
+- Frontend: Vercel (https://gitlab-commit-tracer.vercel.app)
 
 **Capabilities**:
-- Complete pipeline: GitLab API → Tracing → AI Analysis
-- OpenAI GPT-5 integration via Responses API
-- Analyzes: reason, approach, impact, alignment
-- Confidence scoring and cost tracking
-- Batch processing and filtering
-- Pluggable provider architecture
+- Complete pipeline: GitLab Monitoring → Tracing → AI Analysis → Web Dashboard
+- Automatic commit detection with 5-minute polling
+- Queue-based parallel processing (3 concurrent)
+- OpenAI GPT-4o integration for dual-audience updates
+- Real-time web dashboard with monitoring controls
+- Production-ready split architecture deployment
+- Automatic AI analysis for all detected commits
 
-**Next Steps**:
-- Implement Phase 4 - Real-time monitoring and webhooks
-- Add persistent storage for analysis results
-- Build visualization dashboard
+**Next Steps (Phase 5)**:
+- Add Supabase for persistent storage
+- Implement historical analytics
+- Add webhook support for real-time updates
+- Build advanced reporting features
+- Multi-tenant support for multiple organizations

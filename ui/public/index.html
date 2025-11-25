@@ -875,6 +875,22 @@
 
             const html = `
                 ${contextHeader}
+                <div class="update-box technical">
+                    <div class="update-box-header">
+                        <span class="icon">📋</span>
+                        <span>Technical Update</span>
+                        <span style="font-size: 0.85em; font-weight: normal; color: #7f8c8d;">
+                            (For: CPO, Product Leaders, Developers, PMs, Architects)
+                        </span>
+                        <button class="copy-btn" onclick="copyToClipboard('tech-${commitId}', this)">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="update-box-content" id="tech-${commitId}">
+                        ${escapeHtml(data.updates.technicalUpdate)}
+                    </div>
+                </div>
+
                 <div class="update-box business">
                     <div class="update-box-header">
                         <span class="icon">💼</span>

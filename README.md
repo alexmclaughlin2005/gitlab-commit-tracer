@@ -1,15 +1,16 @@
 # GitLab Commit Tracer
 
-An intelligent application that monitors GitLab repositories, traces commits through their development lifecycle (Commit → Merge Request → Issue → Epic), and uses AI to provide contextual analysis of why changes were made and their impact on the overall project.
+An intelligent application that automatically monitors GitLab repositories, traces commits through their development lifecycle (Commit → Merge Request → Issue → Epic), and uses AI to generate stakeholder updates for both technical and business audiences.
 
 ## Overview
 
-This tool helps development teams understand the complete story behind every commit by:
+This tool helps development teams communicate progress effectively by:
 
-- **Monitoring** GitLab repositories for new commits
-- **Tracing** the relationship chain from commits to merge requests, issues, and epics
+- **Monitoring** GitLab repositories automatically for new commits (5-minute polling)
+- **Tracing** the complete relationship chain from commits to merge requests, issues, and epics
 - **Analyzing** the context using AI to understand the purpose and impact of changes
-- **Reporting** insights about development patterns and project progress
+- **Generating** stakeholder updates automatically for technical and business audiences
+- **Delivering** insights through a real-time web dashboard
 
 ## Features
 
@@ -40,7 +41,7 @@ This tool helps development teams understand the complete story behind every com
 - **Chain Metadata**: Detailed tracing statistics, timing, and step-by-step logs
 
 ### Implemented (Phase 3) ✅
-- **AI-Powered Analysis**: OpenAI GPT-5 integration
+- **AI-Powered Analysis**: OpenAI GPT-4o integration
   - Analyzes commit reason, approach, and impact
   - Assesses alignment with issues and epics
   - Confidence scoring for analysis quality
@@ -54,19 +55,43 @@ This tool helps development teams understand the complete story behind every com
 - **Pluggable Providers**: Support for multiple AI providers
 - **Summary Reports**: Human-readable analysis summaries
 
-### Planned (Phase 4)
-- Historical data storage and querying
-- Real-time commit monitoring
+### Implemented (Phase 4) ✅
+- **Automatic Monitoring**: Real-time commit detection
+  - 5-minute polling interval for new commits
+  - Multi-project support with configurable settings
+  - Queue-based processing (3 concurrent slots)
+  - Automatic AI analysis for all detected commits
+  - Fire-and-forget parallel processing
+- **Web Dashboard**: Full-featured UI
+  - Real-time monitoring status and controls
+  - Monitored commits feed with automatic updates
+  - Manual commit tracing interface
+  - Visual relationship chain exploration
+  - One-click stakeholder update generation
+- **Production Deployment**: Split architecture
+  - Backend on Railway with continuous monitoring
+  - Frontend on Vercel for static hosting
+  - CORS-enabled API with environment-based configuration
+  - Automatic redeployment on git push
+
+### Planned (Phase 5)
+- Historical data storage with Supabase
+- Advanced analytics and reporting
 - Webhook support for real-time updates
-- Dashboard for visualizing commit chains and insights
+- Multi-tenant support for multiple organizations
 
 ## Project Status
 
-**Current Phase**: Phase 3 - AI Analysis ✅ COMPLETED
-**Next Phase**: Phase 4 - Real-time Monitoring & Storage
-**Status**: Active Development
+**Current Phase**: Phase 4 - Monitoring & Deployment ✅ COMPLETED
+**Next Phase**: Phase 5 - Persistent Storage & Analytics
+**Status**: Production Deployed
+
+**Live Deployment**:
+- Backend: Railway (https://web-production-7418.up.railway.app)
+- Frontend: Vercel (https://gitlab-commit-tracer.vercel.app)
 
 See [AI_INSTRUCTIONS.md](AI_INSTRUCTIONS.md) for detailed project information and development phases.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment instructions and configuration.
 
 ## Prerequisites
 
@@ -106,25 +131,52 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 ## Usage
 
-### Web Dashboard (Recommended)
+### Production Dashboard
 
-The easiest way to use the GitLab Commit Tracer is through the web dashboard:
-
-```bash
-# Start the web server
-npm run dev:server
-
-# Open browser to http://localhost:3000
-```
+Access the live application at: **https://gitlab-commit-tracer.vercel.app**
 
 The dashboard provides:
-- Visual commit chain exploration
-- Single commit tracing
-- Batch tracing of recent commits
-- Interactive relationship visualization
-- Real-time connection status
+- **Automatic Monitoring**: Start/stop monitoring with real-time status
+- **Monitored Commits Feed**: Auto-refreshing feed of detected commits
+- **Manual Tracing**: Trace individual commits or recent batches
+- **Stakeholder Updates**: One-click generation of business updates
+- **Visual Chain Exploration**: See MR → Issue → Epic relationships
+- **Real-time Status**: Connection status and queue metrics
 
-See [UI_SETUP.md](UI_SETUP.md) for detailed UI documentation.
+### Local Development
+
+To run the application locally:
+
+```bash
+# Start the backend server
+npm run dev:server
+
+# Open browser to http://localhost:3005
+# The UI is served at the root path
+```
+
+### Monitoring Configuration
+
+Configure monitored projects in `config/projects.json`:
+
+```json
+{
+  "projects": [
+    {
+      "id": "your-project-id",
+      "name": "Your Project",
+      "enabled": true,
+      "branches": ["main", "develop"],
+      "pollInterval": 300000,
+      "filters": {
+        "excludeAuthors": ["bot@example.com"]
+      }
+    }
+  ]
+}
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for production configuration.
 
 ### Command Line
 
@@ -212,20 +264,41 @@ See [docs/architecture.md](docs/architecture.md) for detailed architectural info
 ### High-Level Flow
 
 ```
-GitLab Repository
+GitLab Repository (5-min poll)
     ↓
-Commit Detection
+FeedMonitor (Detect new commits)
     ↓
-Relationship Tracing (MR → Issue → Epic)
+CommitProcessor Queue (3 concurrent slots)
     ↓
-AI Context Analysis
+CommitTracer (Build MR → Issue → Epic chain)
     ↓
-Storage & Reporting
+AI Analyzer (Generate stakeholder updates in parallel)
+    ↓
+Web Dashboard (Real-time feed display)
 ```
+
+### Deployment Architecture
+
+```
+Frontend (Vercel) → Backend API (Railway) → GitLab API
+                                         → OpenAI API
+```
+
+**Backend** (Railway):
+- Express server on port 3005
+- Continuous monitoring with FeedMonitor
+- Queue-based commit processing
+- RESTful API endpoints for UI
+
+**Frontend** (Vercel):
+- Static HTML/CSS/JS served globally
+- Real-time status polling (30-second intervals)
+- Auto-refresh of monitored commits feed
 
 ## Documentation
 
 - [AI_INSTRUCTIONS.md](AI_INSTRUCTIONS.md) - Master guide for AI agents working on this project
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide (Railway + Vercel)
 - [docs/architecture.md](docs/architecture.md) - System architecture details
 - [docs/gitlab-api.md](docs/gitlab-api.md) - GitLab API integration guide
 - [docs/ai-analysis.md](docs/ai-analysis.md) - AI analysis approach
@@ -239,11 +312,14 @@ Storage & Reporting
 ├── src/
 │   ├── api/          # GitLab API client
 │   ├── tracing/      # Commit-to-epic tracing logic
-│   ├── analysis/     # AI context analysis
-│   ├── storage/      # Data persistence layer
-│   └── index.ts      # Main entry point
+│   ├── analysis/     # AI context analysis (OpenAI integration)
+│   ├── monitoring/   # FeedMonitor & CommitProcessor
+│   ├── server/       # Express REST API server
+│   └── index.ts      # CLI entry point
+├── ui/
+│   └── public/       # Static web dashboard
+├── config/           # Project configuration (projects.json)
 ├── docs/             # Documentation
-├── config/           # Configuration files
 └── tests/            # Test suite
 ```
 
@@ -269,23 +345,34 @@ This is an AI-led project with specific documentation requirements:
 - [x] Authentication and rate limiting
 - [x] Error handling and retry logic
 
-**Phase 2: Tracing** (Current)
-- [ ] Commit tracer implementation
-- [ ] Relationship chain building
-- [ ] MR → Issue → Epic traversal
-- [ ] Caching layer
+**Phase 2: Tracing** ✅
+- [x] Commit tracer implementation
+- [x] Relationship chain building
+- [x] MR → Issue → Epic traversal
+- [x] Caching layer
+- [x] Batch tracing with summary statistics
 
-**Phase 3: AI Analysis**
-- [ ] AI provider integration
-- [ ] Context extraction
-- [ ] Impact analysis
-- [ ] Storage layer
+**Phase 3: AI Analysis** ✅
+- [x] OpenAI provider integration (GPT-4o)
+- [x] Context extraction and analysis
+- [x] Impact and alignment assessment
+- [x] Stakeholder update generation
+- [x] Dual-audience updates (technical + business)
 
-**Phase 4: Enhancement**
-- [ ] Real-time monitoring
-- [ ] Webhook support
-- [ ] Dashboard/UI
-- [ ] Reporting features
+**Phase 4: Monitoring & Deployment** ✅
+- [x] Real-time monitoring with FeedMonitor
+- [x] Queue-based commit processing
+- [x] Web dashboard UI
+- [x] Production deployment (Railway + Vercel)
+- [x] Automatic AI analysis for monitored commits
+- [x] Parallel processing optimization
+
+**Phase 5: Enhancement** (Next)
+- [ ] Persistent storage with Supabase
+- [ ] Historical commit analytics
+- [ ] Webhook support for real-time updates
+- [ ] Advanced reporting and insights
+- [ ] Multi-tenant support
 
 ## Support
 
