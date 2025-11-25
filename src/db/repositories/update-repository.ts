@@ -29,7 +29,7 @@ export interface UpdateSearchFilters {
 }
 
 /**
- * Save a stakeholder update
+ * Save a stakeholder update (upsert - insert or update if exists)
  */
 export async function saveUpdate(params: SaveUpdateParams) {
   const result = await db
@@ -44,6 +44,20 @@ export async function saveUpdate(params: SaveUpdateParams) {
       tokensUsed: params.tokensUsed,
       costUsd: params.costUsd ? params.costUsd.toString() : undefined,
       durationMs: params.durationMs,
+    })
+    .onConflictDoUpdate({
+      target: stakeholderUpdates.commitSha,
+      set: {
+        analysisId: params.analysisId,
+        technicalUpdate: params.technicalUpdate,
+        businessUpdate: params.businessUpdate,
+        provider: params.provider,
+        model: params.model,
+        tokensUsed: params.tokensUsed,
+        costUsd: params.costUsd ? params.costUsd.toString() : undefined,
+        durationMs: params.durationMs,
+        generatedAt: new Date(),
+      },
     })
     .returning();
 

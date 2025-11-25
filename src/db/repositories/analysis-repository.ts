@@ -22,7 +22,7 @@ export interface SaveAnalysisParams {
 }
 
 /**
- * Save an analysis result
+ * Save an analysis result (upsert - insert or update if exists)
  */
 export async function saveAnalysis(params: SaveAnalysisParams) {
   const result = await db
@@ -40,6 +40,23 @@ export async function saveAnalysis(params: SaveAnalysisParams) {
       tokensUsed: params.tokensUsed,
       costUsd: params.costUsd ? params.costUsd.toString() : undefined,
       durationMs: params.durationMs,
+    })
+    .onConflictDoUpdate({
+      target: analyses.commitSha,
+      set: {
+        reason: params.reason,
+        approach: params.approach,
+        impact: params.impact,
+        alignment: params.alignment,
+        alignmentNotes: params.alignmentNotes,
+        confidence: params.confidence ? params.confidence.toString() : undefined,
+        provider: params.provider,
+        model: params.model,
+        tokensUsed: params.tokensUsed,
+        costUsd: params.costUsd ? params.costUsd.toString() : undefined,
+        durationMs: params.durationMs,
+        analyzedAt: new Date(),
+      },
     })
     .returning();
 

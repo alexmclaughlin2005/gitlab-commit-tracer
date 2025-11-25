@@ -142,9 +142,18 @@ function getMonitor(): FeedMonitor {
         if (existing) {
           existing.chain = chain;
 
-          // Automatically generate stakeholder updates and persist to database (fire-and-forget for parallel processing)
+          // Persist to database immediately (without waiting for AI analysis)
           (async () => {
             try {
+              // First, persist the commit chain without analysis/updates
+              await persistCommitChain({
+                commitSha: event.commit.sha,
+                projectId: event.commit.projectId,
+                chain,
+                analysis: undefined,
+                updates: undefined,
+              });
+
               console.log(`🤖 Generating stakeholder updates for ${event.commit.sha.substring(0, 8)}...`);
               const analyzer = getAnalyzer();
               const analysisResult = await analyzer.analyzeCommitWithUpdates(chain);
