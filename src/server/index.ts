@@ -357,12 +357,13 @@ app.get('/api/monitor/status', (_req: Request, res: Response) => {
  * POST /api/monitor/start
  * Start monitoring
  */
-app.post('/api/monitor/start', async (_req: Request, res: Response) => {
+app.post('/api/monitor/start', async (_req: Request, res: Response): Promise<void> => {
   try {
     const monitor = getMonitor();
 
     if (monitor.getStats().isRunning) {
-      return res.status(400).json({ error: 'Monitor is already running' });
+      res.status(400).json({ error: 'Monitor is already running' });
+      return;
     }
 
     await monitor.start();
@@ -381,12 +382,13 @@ app.post('/api/monitor/start', async (_req: Request, res: Response) => {
  * POST /api/monitor/stop
  * Stop monitoring
  */
-app.post('/api/monitor/stop', (_req: Request, res: Response) => {
+app.post('/api/monitor/stop', (_req: Request, res: Response): void => {
   try {
     const monitor = getMonitor();
 
     if (!monitor.getStats().isRunning) {
-      return res.status(400).json({ error: 'Monitor is not running' });
+      res.status(400).json({ error: 'Monitor is not running' });
+      return;
     }
 
     monitor.stop();

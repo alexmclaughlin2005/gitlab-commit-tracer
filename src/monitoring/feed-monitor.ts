@@ -502,7 +502,6 @@ export class FeedMonitor extends EventEmitter {
     branch: string,
     commitSha: string
   ): void {
-    const key = this.getStateKey(projectId, branch);
     const state = this.getOrCreateState(projectId, branch);
     state.lastCommitSha = commitSha;
     state.lastPolledAt = new Date();

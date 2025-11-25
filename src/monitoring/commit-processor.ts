@@ -10,7 +10,6 @@ import type { CommitChain } from '../tracing/types';
 import type {
   DetectedCommit,
   QueuedCommit,
-  ProcessingStatus,
   CommitProcessedEvent,
 } from './types';
 
@@ -54,7 +53,6 @@ export class CommitProcessor extends EventEmitter {
   private concurrency: number;
   private maxRetries: number;
   private retryDelayMs: number;
-  private autoGenerateUpdates: boolean;
 
   constructor(options: CommitProcessorOptions) {
     super();
@@ -63,7 +61,7 @@ export class CommitProcessor extends EventEmitter {
     this.concurrency = options.concurrency || 3;
     this.maxRetries = options.maxRetries || 3;
     this.retryDelayMs = options.retryDelayMs || 5000;
-    this.autoGenerateUpdates = options.autoGenerateUpdates || false;
+    // autoGenerateUpdates option reserved for future use
   }
 
   /**
