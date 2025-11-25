@@ -1,0 +1,21 @@
+{
+  "projects": [
+    {
+      "id": "23559266",
+      "name": "Filevine App",
+      "description": "Main Filevine application",
+      "branches": ["master"],
+      "enabled": true,
+      "autoGenerateUpdates": false,
+      "filters": {
+        "excludeAuthors": []
+      }
+    }
+  ],
+  "global": {
+    "pollIntervalSeconds": 300,
+    "maxCommitsPerPoll": 20,
+    "enableNotifications": false,
+    "storageLocation": "./data/monitor"
+  }
+}

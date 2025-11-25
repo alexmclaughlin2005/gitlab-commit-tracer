@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitLab Commit Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .status-banner {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: #27ae60;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+        }
+
+        .status-indicator.disconnected {
+            background: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.2);
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .controls h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        input, select, button {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input, select {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chain-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
+
+        .chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .commit-info h3 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .commit-meta {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .chain-stats {
+            text-align: right;
+            font-size: 0.9em;
+        }
+
+        .stat-badge {
+            display: inline-block;
+            background: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-left: 5px;
+            font-weight: 500;
+        }
+
+        .chain-flow {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .flow-item {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .flow-item strong {
+            color: #667eea;
+        }
+
+        .arrow {
+            color: #bbb;
+            font-size: 1.5em;
+        }
+
+        .chain-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .detail-section {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .detail-section h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .label-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            margin-right: 5px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .updates-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .updates-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .updates-header h4 {
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .generate-updates-btn {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .generate-updates-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .generate-updates-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .update-box {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .update-box.technical {
+            border-left: 4px solid #667eea;
+        }
+
+        .update-box.business {
+            border-left: 4px solid #28a745;
+        }
+
+        .update-box-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .update-box-header .icon {
+            font-size: 1.3em;
+        }
+
+        .update-box-content {
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+
+        .update-meta {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .copy-btn {
+            background: #f0f0f0;
+            color: #2c3e50;
+            padding: 4px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .updates-loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+
+        .updates-loading .spinner {
+            width: 30px;
+            height: 30px;
+            margin: 0 auto 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔍 GitLab Commit Tracer</h1>
+            <p>Trace commits through their complete development lifecycle</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="status-banner" id="statusBanner">
+            <div>
+                <span class="status-indicator disconnected" id="statusIndicator"></span>
+                <span id="statusText">Checking connection...</span>
+            </div>
+            <div id="projectInfo" style="font-size: 0.9em; color: #7f8c8d;"></div>
+        </div>
+
+        <!-- Monitoring Section -->
+        <div class="controls" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; color: white;">🔔 Automatic Monitoring</h2>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="startMonitoring()" id="startMonitorBtn" style="background: #2ecc71; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        ▶️ Start
+                    </button>
+                    <button onclick="stopMonitoring()" id="stopMonitorBtn" style="background: #e74c3c; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        ⏸️ Stop
+                    </button>
+                    <button onclick="pollNow()" id="pollNowBtn" style="background: #3498db; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        🔍 Poll Now
+                    </button>
+                    <button onclick="showRecentCommits()" id="showRecentBtn" style="background: #f39c12; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        📋 Show Recent Commits
+                    </button>
+                    <button onclick="refreshMonitorStatus()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+            <div id="monitorStatus" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px; font-size: 0.9em;">
+                <p style="margin: 0;">Loading monitor status...</p>
+            </div>
+        </div>
+
+        <!-- Monitored Commits Feed -->
+        <div class="controls" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0;">📋 Monitored Commits</h2>
+                <button onclick="refreshMonitoredCommits()" style="background: #667eea; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    🔄 Refresh Feed
+                </button>
+            </div>
+            <div id="monitoredCommits" style="min-height: 100px;">
+                <p style="text-align: center; color: #7f8c8d;">
+                    No monitored commits yet. Start monitoring to see new commits automatically.
+                </p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h2>Manual Trace</h2>
+
+            <div class="control-group">
+                <input type="text" id="commitShaInput" placeholder="Enter commit SHA (e.g., abc123...)" />
+                <button onclick="traceSingleCommit()" id="traceSingleBtn">Trace Single Commit</button>
+            </div>
+
+            <div class="control-group">
+                <input type="number" id="recentCountInput" value="5" min="1" max="20" />
+                <input type="text" id="branchInput" placeholder="Branch (optional, e.g., main)" />
+                <button onclick="traceRecentCommits()" id="traceRecentBtn">Trace Recent Commits</button>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <p style="text-align: center; color: #7f8c8d;">
+                Enter a commit SHA or trace recent commits to get started
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Environment-aware API URL
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:3005/api'
+            : (window.location.protocol + '//' + window.location.host + '/api');
+
+        let currentTraceData = null;
+
+        // Check status on load
+        window.addEventListener('load', checkStatus);
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                const projectInfo = document.getElementById('projectInfo');
+
+                if (data.gitlabConnected) {
+                    indicator.className = 'status-indicator connected';
+                    statusText.textContent = 'Connected to GitLab';
+                    projectInfo.textContent = `${data.gitlabUrl} • Project: ${data.projectId}`;
+                } else {
+                    indicator.className = 'status-indicator disconnected';
+                    statusText.textContent = 'Not connected to GitLab';
+                    projectInfo.textContent = data.error || 'Check your configuration';
+                }
+            } catch (error) {
+                console.error('Failed to check status:', error);
+                document.getElementById('statusText').textContent = 'Server not responding';
+            }
+        }
+
+        async function traceSingleCommit() {
+            const sha = document.getElementById('commitShaInput').value.trim();
+            if (!sha) {
+                alert('Please enter a commit SHA');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const response = await fetch(`${API_BASE}/trace/commit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sha })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const chain = await response.json();
+                currentTraceData = { chains: [chain], summary: null };
+                displayResults([chain]);
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function traceRecentCommits() {
+            const count = parseInt(document.getElementById('recentCountInput').value);
+            const branch = document.getElementById('branchInput').value.trim() || undefined;
+
+            setLoading(true);
+
+            try {
+                const response = await fetch(`${API_BASE}/trace/recent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count, branch })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const result = await response.json();
+                currentTraceData = result;
+                displayResults(result.chains, result.summary);
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function setLoading(loading) {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = loading);
+
+            if (loading) {
+                document.getElementById('results').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Tracing commits...</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayResults(chains, summary = null) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+
+            if (summary) {
+                html += `
+                    <div class="success">
+                        <strong>Batch Trace Complete</strong><br>
+                        Total: ${summary.totalCommits} commits •
+                        Success: ${summary.successCount} •
+                        Failed: ${summary.failureCount} •
+                        Total API calls: ${summary.totalApiCalls} •
+                        Duration: ${summary.totalDurationMs}ms
+                    </div>
+                `;
+            }
+
+            chains.forEach(chain => {
+                html += renderChain(chain);
+            });
+
+            resultsDiv.innerHTML = html || '<p>No results</p>';
+        }
+
+        function renderChain(chain) {
+            const commit = chain.commit;
+            const metadata = chain.metadata;
+
+            let html = `
+                <div class="chain-card">
+                    <div class="chain-header">
+                        <div class="commit-info">
+                            <h3>${escapeHtml(commit.title)}</h3>
+                            <div class="commit-meta">
+                                <code>${commit.short_id}</code> •
+                                ${commit.author_name} •
+                                ${new Date(commit.created_at).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="chain-stats">
+                            <div>
+                                <span class="stat-badge">⏱️ ${metadata.durationMs}ms</span>
+                                <span class="stat-badge">🔗 ${metadata.apiCallCount} API calls</span>
+                            </div>
+                            <div style="margin-top: 5px;">
+                                <span class="stat-badge">${metadata.isComplete ? '✅ Complete' : '⚠️ Partial'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chain-flow">
+                        <div class="flow-item">
+                            <strong>Commit</strong><br>
+                            <code>${commit.short_id}</code>
+                        </div>
+                        <span class="arrow">→</span>
+                        <div class="flow-item">
+                            <strong>MRs</strong><br>
+                            ${chain.mergeRequests.length} found
+                        </div>
+                        <span class="arrow">→</span>
+                        <div class="flow-item">
+                            <strong>Issues</strong><br>
+                            ${chain.issues.length} found
+                        </div>
+                        <span class="arrow">→</span>
+                        <div class="flow-item">
+                            <strong>Epics</strong><br>
+                            ${chain.epics.length} found
+                        </div>
+                    </div>
+
+                    <div class="chain-details">
+                        ${chain.mergeRequests.length > 0 ? renderMRs(chain.mergeRequests) : ''}
+                        ${chain.issues.length > 0 ? renderIssues(chain.issues) : ''}
+                        ${chain.epics.length > 0 ? renderEpics(chain.epics) : ''}
+                    </div>
+
+                    ${metadata.warnings.length > 0 ? `
+                        <div class="warning">
+                            <strong>Warnings:</strong><br>
+                            ${metadata.warnings.map(w => `• ${escapeHtml(w)}`).join('<br>')}
+                        </div>
+                    ` : ''}
+
+                    <div class="updates-section" id="updates-${commit.id}">
+                        <div class="updates-header">
+                            <h4>📢 Stakeholder Updates</h4>
+                            <button class="generate-updates-btn" onclick="generateUpdates('${commit.id}')">
+                                Generate Updates
+                            </button>
+                        </div>
+                        <div id="updates-content-${commit.id}">
+                            <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">
+                                Click "Generate Updates" to create technical and business updates for this commit
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function renderMRs(mrLinks) {
+            return `
+                <div class="detail-section">
+                    <h4>Merge Requests (${mrLinks.length})</h4>
+                    ${mrLinks.map(link => {
+                        const mr = link.mergeRequest;
+                        return `
+                            <div class="detail-item">
+                                <div><strong>!${mr.iid}:</strong> <a href="${mr.web_url}" target="_blank">${escapeHtml(mr.title)}</a></div>
+                                <div style="font-size: 0.85em; color: #7f8c8d;">
+                                    ${mr.state} • Closes ${link.closesIssues.length} issue(s)
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderIssues(issueLinks) {
+            return `
+                <div class="detail-section">
+                    <h4>Issues (${issueLinks.length})</h4>
+                    ${issueLinks.map(link => {
+                        const issue = link.issue;
+                        return `
+                            <div class="detail-item">
+                                <div><strong>#${issue.iid}:</strong> <a href="${issue.web_url}" target="_blank">${escapeHtml(issue.title)}</a></div>
+                                <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 3px;">
+                                    ${issue.state}
+                                    ${issue.labels.length > 0 ? '• ' + issue.labels.map(l => `<span class="label-tag">${l}</span>`).join('') : ''}
+                                </div>
+                                ${link.epic ? `<div style="font-size: 0.85em; margin-top: 3px;">Epic: ${escapeHtml(link.epic.title)}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderEpics(epics) {
+            return `
+                <div class="detail-section">
+                    <h4>Epics (${epics.length})</h4>
+                    ${epics.map(epic => `
+                        <div class="detail-item">
+                            <div><strong>&${epic.iid}:</strong> <a href="${epic.web_url}" target="_blank">${escapeHtml(epic.title)}</a></div>
+                            <div style="font-size: 0.85em; color: #7f8c8d;">${epic.state}</div>
+                            ${epic.description ? `<div style="font-size: 0.85em; margin-top: 5px;">${escapeHtml(epic.description.substring(0, 150))}${epic.description.length > 150 ? '...' : ''}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            document.getElementById('results').innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function generateUpdates(commitId) {
+            const contentDiv = document.getElementById(`updates-content-${commitId}`);
+            const button = event.target;
+
+            // Find the chain for this commit
+            if (!currentTraceData || !currentTraceData.chains) {
+                alert('No trace data available. Please trace a commit first.');
+                return;
+            }
+
+            const chain = currentTraceData.chains.find(c => c.commit.id === commitId);
+            if (!chain) {
+                alert('Commit not found in trace data');
+                return;
+            }
+
+            // Show loading
+            button.disabled = true;
+            button.textContent = 'Generating...';
+            contentDiv.innerHTML = `
+                <div class="updates-loading">
+                    <div class="spinner"></div>
+                    <p>Generating stakeholder updates with AI...</p>
+                    <p style="font-size: 0.85em; margin-top: 5px;">This may take 5-10 seconds</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze/updates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chain })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const result = await response.json();
+                displayUpdates(commitId, result);
+                button.textContent = '✓ Updates Generated';
+                button.style.background = '#6c757d';
+            } catch (error) {
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Failed to generate updates:</strong> ${escapeHtml(error.message)}
+                    </div>
+                `;
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
+
+        function extractTeamFromLabels(labels) {
+            if (!labels || !Array.isArray(labels)) return null;
+            const teamLabel = labels.find(l => l.toLowerCase().startsWith('team:'));
+            if (teamLabel) {
+                return teamLabel.substring(5); // Remove "team:" prefix
+            }
+            return null;
+        }
+
+        function getProjectContext(chain) {
+            let epicName = null;
+            let team = null;
+
+            // Try to get epic from issue links
+            if (chain.issues && chain.issues.length > 0) {
+                for (const issueLink of chain.issues) {
+                    if (issueLink.epic) {
+                        epicName = issueLink.epic.title;
+                    }
+                    if (issueLink.issue && issueLink.issue.labels) {
+                        const foundTeam = extractTeamFromLabels(issueLink.issue.labels);
+                        if (foundTeam) {
+                            team = foundTeam;
+                        }
+                    }
+                }
+            }
+
+            // Fallback to epics array
+            if (!epicName && chain.epics && chain.epics.length > 0) {
+                epicName = chain.epics[0].title;
+            }
+
+            return { epicName, team };
+        }
+
+        function displayUpdates(commitId, data) {
+            const contentDiv = document.getElementById(`updates-content-${commitId}`);
+            const context = getProjectContext(data.chain);
+
+            // Build context header
+            let contextHeader = '';
+            if (context.epicName || context.team) {
+                contextHeader = '<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em;">';
+                if (context.epicName) {
+                    contextHeader += `<div><strong>Project/Epic:</strong> ${escapeHtml(context.epicName)}</div>`;
+                }
+                if (context.team) {
+                    contextHeader += `<div style="margin-top: 5px;"><strong>Team:</strong> ${escapeHtml(context.team)}</div>`;
+                }
+                contextHeader += '</div>';
+            }
+
+            const html = `
+                ${contextHeader}
+                <div class="update-box technical">
+                    <div class="update-box-header">
+                        <span class="icon">📋</span>
+                        <span>CPO Update</span>
+                        <span style="font-size: 0.85em; font-weight: normal; color: #7f8c8d;">
+                            (For: CPO, Product Leaders, Developers, PMs, Architects)
+                        </span>
+                        <button class="copy-btn" onclick="copyToClipboard('tech-${commitId}', this)">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="update-box-content" id="tech-${commitId}">
+                        ${escapeHtml(data.updates.technicalUpdate)}
+                    </div>
+                </div>
+
+                <div class="update-box business">
+                    <div class="update-box-header">
+                        <span class="icon">💼</span>
+                        <span>Business Update</span>
+                        <span style="font-size: 0.85em; font-weight: normal; color: #7f8c8d;">
+                            (For: Marketing, Sales, Support, GTM, Executives)
+                        </span>
+                        <button class="copy-btn" onclick="copyToClipboard('biz-${commitId}', this)">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="update-box-content" id="biz-${commitId}">
+                        ${escapeHtml(data.updates.businessUpdate)}
+                    </div>
+                </div>
+
+                ${data.updates.metadata ? `
+                    <div class="update-meta">
+                        <strong>Generation Details:</strong>
+                        Model: ${data.updates.metadata.model} •
+                        Duration: ${data.updates.metadata.durationMs}ms •
+                        Tokens: ${data.updates.metadata.tokensUsed || 'N/A'} •
+                        Cost: $${data.updates.metadata.costUsd?.toFixed(4) || 'N/A'}
+                    </div>
+                ` : ''}
+
+                ${data.analysis ? `
+                    <div class="update-meta" style="margin-top: 10px; padding-top: 10px;">
+                        <strong>Analysis Context:</strong>
+                        Reason: ${escapeHtml(data.analysis.reason.substring(0, 100))}... •
+                        Alignment: ${data.analysis.alignment} •
+                        Confidence: ${(data.analysis.confidence * 100).toFixed(0)}%
+                    </div>
+                ` : ''}
+            `;
+
+            contentDiv.innerHTML = html;
+        }
+
+        async function copyToClipboard(elementId, button) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalText = button.textContent;
+                button.textContent = '✓ Copied!';
+                button.style.background = '#d4edda';
+                button.style.color = '#155724';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                    button.style.color = '';
+                }, 2000);
+            } catch (error) {
+                alert('Failed to copy to clipboard');
+            }
+        }
+
+        // =====================================================================
+        // Monitoring Functions
+        // =====================================================================
+
+        // Refresh monitor status on load
+        window.addEventListener('load', () => {
+            refreshMonitorStatus();
+            refreshMonitoredCommits();
+            // Auto-refresh every 30 seconds
+            setInterval(refreshMonitorStatus, 30000);
+            setInterval(refreshMonitoredCommits, 30000);
+        });
+
+        async function startMonitoring() {
+            const button = document.getElementById('startMonitorBtn');
+            button.disabled = true;
+            button.textContent = '⏳ Starting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/monitor/start`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Monitoring started! The system will now automatically detect new commits.');
+                    await refreshMonitorStatus();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to start monitoring: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '▶️ Start';
+            }
+        }
+
+        async function stopMonitoring() {
+            const button = document.getElementById('stopMonitorBtn');
+            button.disabled = true;
+            button.textContent = '⏳ Stopping...';
+
+            try {
+                const response = await fetch(`${API_BASE}/monitor/stop`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('⏸️ Monitoring stopped.');
+                    await refreshMonitorStatus();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to stop monitoring: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '⏸️ Stop';
+            }
+        }
+
+        async function pollNow() {
+            const button = document.getElementById('pollNowBtn');
+            button.disabled = true;
+            button.textContent = '⏳ Polling...';
+
+            try {
+                // Get the list of monitored projects
+                const projectsResponse = await fetch(`${API_BASE}/monitor/projects`);
+                const projectsData = await projectsResponse.json();
+
+                if (!projectsData.projects || projectsData.projects.length === 0) {
+                    alert('No projects configured. Please edit config/projects.json');
+                    return;
+                }
+
+                const enabledProjects = projectsData.projects.filter(p => p.enabled);
+
+                if (enabledProjects.length === 0) {
+                    alert('No enabled projects. Please enable at least one project in config/projects.json');
+                    return;
+                }
+
+                // Poll each enabled project
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const project of enabledProjects) {
+                    try {
+                        const response = await fetch(`${API_BASE}/monitor/poll/${project.id}`, {
+                            method: 'POST'
+                        });
+
+                        if (response.ok) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        errorCount++;
+                        console.error(`Failed to poll ${project.name}:`, error);
+                    }
+                }
+
+                // Refresh the UI
+                await Promise.all([
+                    refreshMonitorStatus(),
+                    refreshMonitoredCommits()
+                ]);
+
+                if (errorCount === 0) {
+                    alert(`✅ Successfully polled ${successCount} project(s)! Check the feed below for new commits.`);
+                } else {
+                    alert(`⚠️ Polled ${successCount} project(s), but ${errorCount} failed. Check console for details.`);
+                }
+            } catch (error) {
+                alert('Failed to poll projects: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔍 Poll Now';
+            }
+        }
+
+        async function refreshMonitorStatus() {
+            const statusDiv = document.getElementById('monitorStatus');
+
+            try {
+                const response = await fetch(`${API_BASE}/monitor/status`);
+                const data = await response.json();
+
+                const { monitor, processor, states } = data;
+
+                const statusHtml = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Status</div>
+                            <div style="font-size: 1.2em;">
+                                ${monitor.isRunning ? '✅ Running' : '⏸️ Stopped'}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Projects</div>
+                            <div>${monitor.enabledProjects} enabled / ${monitor.totalProjects} total</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Discovered</div>
+                            <div>${monitor.totalCommitsDiscovered} commits</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Queue</div>
+                            <div>${processor.queueSize} pending (${processor.processing} processing)</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Processed</div>
+                            <div>${processor.completed} completed, ${processor.failed} failed</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">Next Poll</div>
+                            <div>${monitor.nextPollAt ? new Date(monitor.nextPollAt).toLocaleTimeString() : 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+
+                statusDiv.innerHTML = statusHtml;
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="margin: 0; color: #e74c3c;">Error loading status: ${error.message}</p>`;
+            }
+        }
+
+        async function refreshMonitoredCommits() {
+            const commitsDiv = document.getElementById('monitoredCommits');
+
+            try {
+                const response = await fetch(`${API_BASE}/monitor/commits`);
+                const data = await response.json();
+
+                // Get status to show baseline info
+                const statusResponse = await fetch(`${API_BASE}/monitor/status`);
+                const statusData = await statusResponse.json();
+
+                if (!data.commits || data.commits.length === 0) {
+                    // Show detailed message explaining why no commits are visible
+                    const states = statusData.states || [];
+                    let baselineInfo = '';
+
+                    if (states.length > 0) {
+                        const state = states[0];
+                        if (state.lastCommitSha) {
+                            baselineInfo = `
+                                <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                    <div style="font-weight: 600; margin-bottom: 10px;">ℹ️ Why is this empty?</div>
+                                    <div style="margin-bottom: 10px;">
+                                        The monitoring system is working correctly! When you first started monitoring,
+                                        the system recorded the latest commit as a baseline:
+                                    </div>
+                                    <div style="font-family: monospace; background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                                        <strong>Project:</strong> ${state.projectId}<br>
+                                        <strong>Branch:</strong> ${state.branch}<br>
+                                        <strong>Baseline:</strong> ${state.lastCommitSha.substring(0, 8)}<br>
+                                        <strong>Last polled:</strong> ${state.lastPolledAt ? new Date(state.lastPolledAt).toLocaleString() : 'Never'}
+                                    </div>
+                                    <div style="margin-bottom: 10px;">
+                                        <strong>Only commits NEWER than the baseline will appear here.</strong>
+                                        If no new commits have been made since then, the feed will be empty.
+                                    </div>
+                                    <div>
+                                        To see recent commits and reset the baseline, click the
+                                        <strong>"Show Recent Commits"</strong> button above.
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    commitsDiv.innerHTML = `
+                        <p style="text-align: center; color: #7f8c8d; margin-bottom: 10px;">
+                            ${statusData.monitor?.totalCommitsDiscovered > 0
+                                ? 'No new commits detected since monitoring started.'
+                                : 'No monitored commits yet. Start monitoring to see new commits automatically.'}
+                        </p>
+                        ${baselineInfo}
+                    `;
+                    return;
+                }
+
+                const commitsHtml = data.commits.slice(0, 10).map(item => {
+                    const commit = item.commit;
+                    const chain = item.chain;
+                    const hasChain = chain && chain.mergeRequests;
+
+                    return `
+                        <div class="commit-card" style="border-left: 4px solid ${hasChain ? '#2ecc71' : '#f39c12'}; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">
+                                        ${escapeHtml(commit.title)}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #7f8c8d;">
+                                        <a href="https://gitlab.com/${commit.projectId}/-/commit/${commit.sha}" target="_blank" style="color: #667eea;">
+                                            ${commit.sha.substring(0, 8)}
+                                        </a>
+                                        • ${commit.authorName}
+                                        • ${new Date(commit.discoveredAt).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div style="text-align: right; font-size: 0.85em;">
+                                    <div style="font-weight: 600; color: ${hasChain ? '#2ecc71' : '#f39c12'};">
+                                        ${hasChain ? '✅ Traced' : '⏳ Processing'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${hasChain ? `
+                                <div style="display: flex; gap: 15px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 6px; font-size: 0.9em;">
+                                    <div>MRs: <strong>${chain.mergeRequests.length}</strong></div>
+                                    <div>Issues: <strong>${chain.issues.length}</strong></div>
+                                    <div>Epics: <strong>${chain.epics.length}</strong></div>
+                                    <div>API Calls: ${chain.metadata.apiCallCount}</div>
+                                    <div>Duration: ${chain.metadata.durationMs}ms</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                commitsDiv.innerHTML = `
+                    <div style="margin-bottom: 10px; color: #7f8c8d; font-size: 0.9em;">
+                        Showing ${Math.min(10, data.commits.length)} of ${data.total} monitored commits
+                    </div>
+                    ${commitsHtml}
+                `;
+            } catch (error) {
+                commitsDiv.innerHTML = `<p style="text-align: center; color: #e74c3c;">Error loading commits: ${error.message}</p>`;
+            }
+        }
+
+        async function showRecentCommits() {
+            const button = document.getElementById('showRecentBtn');
+            button.disabled = true;
+            button.textContent = '⏳ Loading...';
+
+            try {
+                // Get the list of monitored projects
+                const projectsResponse = await fetch(`${API_BASE}/monitor/projects`);
+                const projectsData = await projectsResponse.json();
+
+                if (!projectsData.projects || projectsData.projects.length === 0) {
+                    alert('No projects configured. Please edit config/projects.json');
+                    return;
+                }
+
+                const enabledProjects = projectsData.projects.filter(p => p.enabled);
+
+                if (enabledProjects.length === 0) {
+                    alert('No enabled projects. Please enable at least one project in config/projects.json');
+                    return;
+                }
+
+                // For each enabled project, get recent commits and reset baseline
+                const response = await fetch(`${API_BASE}/monitor/show-recent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: 5 })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Refresh the UI
+                    await Promise.all([
+                        refreshMonitorStatus(),
+                        refreshMonitoredCommits()
+                    ]);
+
+                    alert(`✅ Loaded ${data.totalCommits} recent commit(s) and reset baseline! These commits will now be traced and appear in the feed below.`);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to load recent commits'));
+                }
+            } catch (error) {
+                alert('Failed to load recent commits: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '📋 Show Recent Commits';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+Product Training
+How to Write an Effective Update
+
+What Is Product’s Role
+How to Write an Effective Update
+
+
+Product managers are the bridge between engineering execution and business needs. As far as updates are concerned, your core responsibility is translating technical progress into information the business can act on.
+You own the narrative - Engineering updates focus on implementation details. Your updates focus on customer impact and business readiness.
+
+You protect leadership's time - Leaders shouldn't need to dig through Slack threads, GitLab issues, or ask follow-up questions to understand where things stand.
+
+You enable confident commitments - Sales, Customer Success, and executives rely on your updates to make promises to customers and prospects.
+
+What Leadership Needs to Know
+How to Write an Effective Update
+
+
+Our leaders spend a large amount of their time in meetings with customers and prospects, answering critical questions about our product including new and upcoming features. When a customer asks, "When can we get Feature X?" or a prospect says, "We need Y capability before we sign," leaders need to answer confidently on the spot.
+Your updates should answer these questions:
+
+Where are we? - Current state and progress
+
+When is it available? - Timeline for customer use, what will be delivered and what impact will it have
+
+Can we commit? - Demo-ready? Safe to promise to customers?
+
+
+Where to Write Updates
+How to Write an Effective Update
+
+
+Updates are written in the Product Airtable interface which is found here.
+
+Where Product Updates Go
+How to Write an Effective Update
+
+
+The updates provided by the Product team are critical for helping our business leaders and stakeholders make informed decisions for the success of our company.
+Weekly Product Pending Spreadsheet - Mike reviews this every Monday morning
+
+Release Preview - (coming soon) These updates may replace the updates provided in Release Preview
+
+Assumptions You Should Make
+How to Write an Effective Update
+
+
+When writing your update, assume:
+
+
+Readers may not remember your update from last week - Don't assume context carries over. Each update should stand on its own and be quickly digestible.
+
+We don't know which customer someone is talking to - They might be on a call with an enterprise prospect, a longtime customer, or a potential partner. Your update needs to work for any scenario.
+
+Others outside of Product may see these updates - Other departments may reference these. Write for a broad business audience, not just product/engineering insiders.
+
+
+Examples
+
+Example No. 1
+How to Write an Effective Update
+
+
+We've completed the migration to the new search infrastructure to prevent partial search responses and it's running stable in production for 3 weeks. Performance is 40% faster than the old system with zero incidents. We're ready for general availability next week - safe to commit to any customer or prospect.
+
+Example No. 1
+How to Write an Effective Update
+
+
+We've completed the migration to the new search infrastructure to prevent partial search responses and it's running stable in production for 3 weeks. Performance is 40% faster than the old system with zero incidents. We're ready for general availability next week - safe to commit to any customer or prospect.
+Where are we?
+When is it available?
+Can we commit?
+
+Example No. 2
+How to Write an Effective Update
+
+
+We're mid-flight on the custom update feature for Project Activity feed, on schedule through our 4 engineering cycles. We're expecting 6 weeks to customer availability, but we’re 70% confident we’ll have a timeline in 2 weeks once we complete the next milestone. Not ready to promise specific customers yet - check back in 2 weeks for a commitment-ready timeline.
+
+Example No. 2
+How to Write an Effective Update
+
+
+We're mid-flight on the custom update feature for Project Activity feed, on schedule through our 4 engineering cycles. We're expecting 6 weeks to customer availability, but we’re 70% confident we’ll have a timeline in 2 weeks once we complete the next milestone. Not ready to promise specific customers yet - check back in 2 weeks for a commitment-ready timeline.
+Where are we?
+When is it available?
+Can we commit?
+
+Example No. 3
+How to Write an Effective Update
+
+
+Just started development, on track through our planned 12-week build. Too early to estimate customer availability since we're in the initial development phase. Not ready to make any customer commitments yet.
+
+Example No. 3
+How to Write an Effective Update
+
+
+Just started development, on track through our planned 12-week build. Too early to estimate customer availability since we're in the initial development phase. Not ready to make any customer commitments yet.
+Where are we?
+When is it available?
+Can we commit?
+
+Example No. 4
+How to Write an Effective Update
+
+
+Nearing completion, 2 weeks behind original schedule but now stable. Ready for beta customers next week, with production release after we gather beta feedback. Safe to promise to customers who can accept beta status.
+
+Example No. 4
+How to Write an Effective Update
+
+
+Nearing completion, 2 weeks behind original schedule but now stable. Ready for beta customers next week, with production release after we gather beta feedback. Safe to promise to customers who can accept beta status.
+Where are we?
+When is it available?
+Can we commit?
+
+Example No. 5
+How to Write an Effective Update
+
+
+Infrastructure optimization for report generation complete. Reduces processing time by 60%, enabling future work on real-time reporting features. Not customer-visible yet, but unblocks Q1 roadmap items.
+
+Example No. 5
+How to Write an Effective Update
+
+
+Infrastructure optimization for report generation complete. Reduces processing time by 60%, enabling future work on real-time reporting features. Not customer-visible yet, but unblocks Q1 roadmap items.
+Where are we?
+When is it available?
+Can we commit?
