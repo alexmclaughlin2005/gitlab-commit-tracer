@@ -76,13 +76,27 @@
             position: absolute;
             right: 0;
             top: 100%;
-            margin-top: 8px;
-            background: white;
+            padding-top: 8px;
+            background: transparent;
             min-width: 200px;
+            z-index: 1000;
+        }
+
+        .nav-dropdown-content::before {
+            content: '';
+            display: block;
+            height: 8px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .nav-dropdown-menu {
+            background: white;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border-radius: 8px;
             overflow: hidden;
-            z-index: 1000;
         }
 
         .nav-dropdown:hover .nav-dropdown-content {
@@ -491,18 +505,20 @@
                         <span>▼</span>
                     </button>
                     <div class="nav-dropdown-content">
-                        <a href="index.html">
-                            <span class="nav-icon">🏠</span>
-                            <span>Home</span>
-                        </a>
-                        <a href="teams.html">
-                            <span class="nav-icon">👥</span>
-                            <span>Teams View</span>
-                        </a>
-                        <a href="epics.html">
-                            <span class="nav-icon">📊</span>
-                            <span>Epics View</span>
-                        </a>
+                        <div class="nav-dropdown-menu">
+                            <a href="index.html">
+                                <span class="nav-icon">🏠</span>
+                                <span>Home</span>
+                            </a>
+                            <a href="teams.html">
+                                <span class="nav-icon">👥</span>
+                                <span>Teams View</span>
+                            </a>
+                            <a href="epics.html">
+                                <span class="nav-icon">📊</span>
+                                <span>Epics View</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
