@@ -491,8 +491,9 @@
         // Environment-aware API URL
         const API_BASE = window.location.hostname === 'localhost'
             ? 'http://localhost:3005/api'
-            : (window.location.protocol + '//' + window.location.host + '/api');
+            : 'https://web-production-7418.up.railway.app/api';
 
+        console.log('Using API Base URL:', API_BASE);
         let currentTraceData = null;
 
         // Check status on load
