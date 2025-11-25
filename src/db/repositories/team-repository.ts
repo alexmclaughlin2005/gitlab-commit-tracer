@@ -4,7 +4,7 @@
 
 import { db } from '../connection';
 import { teams } from '../schema';
-import { eq, like, desc } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 
 export interface CreateTeamParams {
   name: string;

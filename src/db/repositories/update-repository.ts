@@ -7,20 +7,19 @@ import { stakeholderUpdates } from '../schema';
 import { eq, desc, and, inArray, gte, lte, sql } from 'drizzle-orm';
 
 export interface SaveUpdateParams {
-  commitChainId: number;
   commitSha: string;
-  updateType: 'technical' | 'business';
-  content: string;
+  analysisId?: number;
+  technicalUpdate: string;
+  businessUpdate: string;
+  provider?: string;
   model?: string;
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens?: number;
+  tokensUsed?: number;
+  costUsd?: number;
   durationMs?: number;
 }
 
 export interface UpdateSearchFilters {
   commitSha?: string;
-  updateType?: 'technical' | 'business';
   teamIds?: number[];
   epicIds?: number[];
   startDate?: Date;
@@ -36,14 +35,14 @@ export async function saveUpdate(params: SaveUpdateParams) {
   const result = await db
     .insert(stakeholderUpdates)
     .values({
-      commitChainId: params.commitChainId,
       commitSha: params.commitSha,
-      updateType: params.updateType,
-      content: params.content,
+      analysisId: params.analysisId,
+      technicalUpdate: params.technicalUpdate,
+      businessUpdate: params.businessUpdate,
+      provider: params.provider,
       model: params.model,
-      promptTokens: params.promptTokens,
-      completionTokens: params.completionTokens,
-      totalTokens: params.totalTokens,
+      tokensUsed: params.tokensUsed,
+      costUsd: params.costUsd ? params.costUsd.toString() : undefined,
       durationMs: params.durationMs,
     })
     .returning();
@@ -52,47 +51,17 @@ export async function saveUpdate(params: SaveUpdateParams) {
 }
 
 /**
- * Get all updates for a commit
+ * Get update for a commit
  */
-export async function getUpdatesByCommit(commitSha: string) {
-  return db
-    .select()
-    .from(stakeholderUpdates)
-    .where(eq(stakeholderUpdates.commitSha, commitSha))
-    .orderBy(desc(stakeholderUpdates.createdAt));
-}
-
-/**
- * Get a specific update by commit and type
- */
-export async function getUpdateByCommitAndType(
-  commitSha: string,
-  updateType: 'technical' | 'business'
-) {
+export async function getUpdateByCommit(commitSha: string) {
   const result = await db
     .select()
     .from(stakeholderUpdates)
-    .where(
-      and(
-        eq(stakeholderUpdates.commitSha, commitSha),
-        eq(stakeholderUpdates.updateType, updateType)
-      )
-    )
-    .orderBy(desc(stakeholderUpdates.createdAt))
+    .where(eq(stakeholderUpdates.commitSha, commitSha))
+    .orderBy(desc(stakeholderUpdates.generatedAt))
     .limit(1);
 
   return result[0] || null;
-}
-
-/**
- * Get all updates for a commit chain
- */
-export async function getUpdatesByChain(commitChainId: number) {
-  return db
-    .select()
-    .from(stakeholderUpdates)
-    .where(eq(stakeholderUpdates.commitChainId, commitChainId))
-    .orderBy(desc(stakeholderUpdates.createdAt));
 }
 
 /**
@@ -110,16 +79,12 @@ export async function searchUpdates(filters: UpdateSearchFilters) {
     conditions.push(eq(stakeholderUpdates.commitSha, filters.commitSha));
   }
 
-  if (filters.updateType) {
-    conditions.push(eq(stakeholderUpdates.updateType, filters.updateType));
-  }
-
   if (filters.startDate) {
-    conditions.push(gte(stakeholderUpdates.createdAt, filters.startDate));
+    conditions.push(gte(stakeholderUpdates.generatedAt, filters.startDate));
   }
 
   if (filters.endDate) {
-    conditions.push(lte(stakeholderUpdates.createdAt, filters.endDate));
+    conditions.push(lte(stakeholderUpdates.generatedAt, filters.endDate));
   }
 
   if (conditions.length > 0) {
@@ -132,15 +97,15 @@ export async function searchUpdates(filters: UpdateSearchFilters) {
     const { commitChains } = await import('../schema');
 
     const chains = await db
-      .select({ id: commitChains.id })
+      .select({ commitSha: commitChains.commitSha })
       .from(commitChains)
       .where(
         sql`${commitChains.teamIds} && ARRAY[${sql.raw(filters.teamIds.join(','))}]::integer[]`
       );
 
-    const chainIds = chains.map((c) => c.id);
-    if (chainIds.length > 0) {
-      query = query.where(inArray(stakeholderUpdates.commitChainId, chainIds));
+    const commitShas = chains.map((c) => c.commitSha);
+    if (commitShas.length > 0) {
+      query = query.where(inArray(stakeholderUpdates.commitSha, commitShas));
     } else {
       return [];
     }
@@ -151,22 +116,22 @@ export async function searchUpdates(filters: UpdateSearchFilters) {
     const { commitChains } = await import('../schema');
 
     const chains = await db
-      .select({ id: commitChains.id })
+      .select({ commitSha: commitChains.commitSha })
       .from(commitChains)
       .where(
         sql`${commitChains.epicIds} && ARRAY[${sql.raw(filters.epicIds.join(','))}]::integer[]`
       );
 
-    const chainIds = chains.map((c) => c.id);
-    if (chainIds.length > 0) {
-      query = query.where(inArray(stakeholderUpdates.commitChainId, chainIds));
+    const commitShas = chains.map((c) => c.commitSha);
+    if (commitShas.length > 0) {
+      query = query.where(inArray(stakeholderUpdates.commitSha, commitShas));
     } else {
       return [];
     }
   }
 
   const results = await query
-    .orderBy(desc(stakeholderUpdates.createdAt))
+    .orderBy(desc(stakeholderUpdates.generatedAt))
     .limit(limit)
     .offset(offset);
 
@@ -176,17 +141,12 @@ export async function searchUpdates(filters: UpdateSearchFilters) {
 /**
  * Get recent updates across all commits
  */
-export async function getRecentUpdates(
-  limit: number = 50,
-  updateType?: 'technical' | 'business'
-) {
-  let query = db.select().from(stakeholderUpdates).$dynamic();
-
-  if (updateType) {
-    query = query.where(eq(stakeholderUpdates.updateType, updateType));
-  }
-
-  return query.orderBy(desc(stakeholderUpdates.createdAt)).limit(limit);
+export async function getRecentUpdates(limit: number = 50) {
+  return db
+    .select()
+    .from(stakeholderUpdates)
+    .orderBy(desc(stakeholderUpdates.generatedAt))
+    .limit(limit);
 }
 
 /**

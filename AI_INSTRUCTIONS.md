@@ -42,6 +42,7 @@ This application automatically monitors GitLab repositories for commits, traces 
 │   ├── tracing/               # Commit-to-epic tracing logic
 │   ├── analysis/              # AI context analysis (OpenAI)
 │   ├── monitoring/            # FeedMonitor & CommitProcessor
+│   ├── notifications/         # Slack/Discord/email notifications
 │   ├── server/                # Express REST API server
 │   └── index.ts               # CLI entry point
 ├── ui/                        # Frontend
@@ -166,12 +167,23 @@ When making changes:
   - [x] CORS configuration for split architecture
   - [x] Environment-based API configuration
   - [x] Automatic redeployment on git push
+- [x] Slack Notifications
+  - [x] Incoming webhook integration
+  - [x] Rich message formatting with Block Kit
+  - [x] Automatic notifications on AI analysis complete
+  - [x] Error notifications
+  - [x] Configurable event and content filters
 
 **Key Files Implemented**:
 - `src/monitoring/feed-monitor.ts` - FeedMonitor class (500+ lines)
 - `src/monitoring/commit-processor.ts` - CommitProcessor queue (300+ lines)
 - `src/monitoring/types.ts` - Monitoring type definitions
-- `src/server/index.ts` - Express API server (400+ lines)
+- `src/notifications/notification-service.ts` - Notification coordinator (200+ lines)
+- `src/notifications/slack-client.ts` - Slack webhook integration (150+ lines)
+- `src/notifications/formatters/slack-formatter.ts` - Slack message formatting (400+ lines)
+- `src/notifications/types.ts` - Notification type definitions
+- `src/notifications/README.md` - Comprehensive notification documentation
+- `src/server/index.ts` - Express API server (500+ lines)
 - `ui/public/index.html` - Web dashboard (1300+ lines)
 - `config/projects.json` - Project configuration
 - `railway.json` - Railway deployment config
@@ -275,13 +287,14 @@ for (const mr of mrs) {
 - Frontend: Vercel (https://gitlab-commit-tracer.vercel.app)
 
 **Capabilities**:
-- Complete pipeline: GitLab Monitoring → Tracing → AI Analysis → Web Dashboard
+- Complete pipeline: GitLab Monitoring → Tracing → AI Analysis → Web Dashboard → Slack Notifications
 - Automatic commit detection with 5-minute polling
 - Queue-based parallel processing (3 concurrent)
 - OpenAI GPT-4o integration for dual-audience updates
 - Real-time web dashboard with monitoring controls
 - Production-ready split architecture deployment
 - Automatic AI analysis for all detected commits
+- Slack notifications with rich formatting for completed analyses
 
 **Next Steps (Phase 5)**:
 - Add Supabase for persistent storage

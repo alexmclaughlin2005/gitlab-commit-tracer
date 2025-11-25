@@ -4,7 +4,7 @@
 
 import { db } from '../connection';
 import { issues, mergeRequests, epics, projects } from '../schema';
-import { eq, inArray, desc } from 'drizzle-orm';
+import { eq, inArray, desc, and } from 'drizzle-orm';
 
 // ============================================================================
 // PROJECT OPERATIONS
@@ -13,9 +13,8 @@ import { eq, inArray, desc } from 'drizzle-orm';
 export interface SaveProjectParams {
   id: string;
   name: string;
-  description?: string;
-  webUrl?: string;
-  isMonitored?: boolean;
+  gitlabUrl?: string;
+  enabled?: boolean;
 }
 
 export async function saveProject(params: SaveProjectParams) {
@@ -24,17 +23,15 @@ export async function saveProject(params: SaveProjectParams) {
     .values({
       id: params.id,
       name: params.name,
-      description: params.description,
-      webUrl: params.webUrl,
-      isMonitored: params.isMonitored ?? true,
+      gitlabUrl: params.gitlabUrl || '',
+      enabled: params.enabled ?? true,
     })
     .onConflictDoUpdate({
       target: projects.id,
       set: {
         name: params.name,
-        description: params.description,
-        webUrl: params.webUrl,
-        isMonitored: params.isMonitored ?? true,
+        gitlabUrl: params.gitlabUrl || '',
+        enabled: params.enabled ?? true,
       },
     })
     .returning();
@@ -56,14 +53,16 @@ export async function getAllProjects() {
 // ============================================================================
 
 export interface SaveIssueParams {
+  id: number;
   iid: number;
   projectId: string;
+  epicId?: number;
+  teamId?: number;
   title: string;
   description?: string;
   state?: string;
   labels?: string[];
   webUrl?: string;
-  authorName?: string;
   createdAt?: Date;
   updatedAt?: Date;
   closedAt?: Date;
@@ -73,21 +72,25 @@ export async function saveIssue(params: SaveIssueParams) {
   const result = await db
     .insert(issues)
     .values({
+      id: params.id,
       iid: params.iid,
       projectId: params.projectId,
+      epicId: params.epicId,
+      teamId: params.teamId,
       title: params.title,
       description: params.description,
       state: params.state,
       labels: params.labels || [],
       webUrl: params.webUrl,
-      authorName: params.authorName,
       createdAt: params.createdAt,
       updatedAt: params.updatedAt,
       closedAt: params.closedAt,
     })
     .onConflictDoUpdate({
-      target: [issues.iid, issues.projectId],
+      target: issues.id,
       set: {
+        epicId: params.epicId,
+        teamId: params.teamId,
         title: params.title,
         description: params.description,
         state: params.state,
@@ -106,8 +109,7 @@ export async function getIssueByIid(iid: number, projectId: string) {
   const result = await db
     .select()
     .from(issues)
-    .where(eq(issues.iid, iid))
-    .where(eq(issues.projectId, projectId))
+    .where(and(eq(issues.iid, iid), eq(issues.projectId, projectId)))
     .limit(1);
   return result[0] || null;
 }
@@ -125,51 +127,42 @@ export async function getIssuesByProject(projectId: string) {
 // ============================================================================
 
 export interface SaveMergeRequestParams {
+  id: number;
   iid: number;
   projectId: string;
   title: string;
   description?: string;
   state?: string;
-  sourceBranch?: string;
-  targetBranch?: string;
   webUrl?: string;
-  authorName?: string;
   createdAt?: Date;
   updatedAt?: Date;
   mergedAt?: Date;
-  closedAt?: Date;
 }
 
 export async function saveMergeRequest(params: SaveMergeRequestParams) {
   const result = await db
     .insert(mergeRequests)
     .values({
+      id: params.id,
       iid: params.iid,
       projectId: params.projectId,
       title: params.title,
       description: params.description,
       state: params.state,
-      sourceBranch: params.sourceBranch,
-      targetBranch: params.targetBranch,
       webUrl: params.webUrl,
-      authorName: params.authorName,
       createdAt: params.createdAt,
       updatedAt: params.updatedAt,
       mergedAt: params.mergedAt,
-      closedAt: params.closedAt,
     })
     .onConflictDoUpdate({
-      target: [mergeRequests.iid, mergeRequests.projectId],
+      target: mergeRequests.id,
       set: {
         title: params.title,
         description: params.description,
         state: params.state,
-        sourceBranch: params.sourceBranch,
-        targetBranch: params.targetBranch,
         webUrl: params.webUrl,
         updatedAt: params.updatedAt,
         mergedAt: params.mergedAt,
-        closedAt: params.closedAt,
       },
     })
     .returning();
@@ -181,8 +174,7 @@ export async function getMergeRequestByIid(iid: number, projectId: string) {
   const result = await db
     .select()
     .from(mergeRequests)
-    .where(eq(mergeRequests.iid, iid))
-    .where(eq(mergeRequests.projectId, projectId))
+    .where(and(eq(mergeRequests.iid, iid), eq(mergeRequests.projectId, projectId)))
     .limit(1);
   return result[0] || null;
 }
@@ -201,14 +193,12 @@ export async function getMergeRequestsByProject(projectId: string) {
 
 export interface SaveEpicParams {
   id: number;
-  groupId: string;
+  groupId: number;
   iid: number;
   title: string;
   description?: string;
   state?: string;
-  labels?: string[];
   webUrl?: string;
-  authorName?: string;
   createdAt?: Date;
   updatedAt?: Date;
   closedAt?: Date;
@@ -224,9 +214,7 @@ export async function saveEpic(params: SaveEpicParams) {
       title: params.title,
       description: params.description,
       state: params.state,
-      labels: params.labels || [],
       webUrl: params.webUrl,
-      authorName: params.authorName,
       createdAt: params.createdAt,
       updatedAt: params.updatedAt,
       closedAt: params.closedAt,
@@ -237,7 +225,6 @@ export async function saveEpic(params: SaveEpicParams) {
         title: params.title,
         description: params.description,
         state: params.state,
-        labels: params.labels || [],
         webUrl: params.webUrl,
         updatedAt: params.updatedAt,
         closedAt: params.closedAt,

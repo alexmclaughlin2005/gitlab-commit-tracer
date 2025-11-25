@@ -54,7 +54,7 @@ function getPool(): Pool {
 
 // Export pool getter
 export const pool = new Proxy({} as Pool, {
-  get: (target, prop) => {
+  get: (_target, prop) => {
     const actualPool = getPool();
     const value = (actualPool as any)[prop];
     return typeof value === 'function' ? value.bind(actualPool) : value;
@@ -73,7 +73,7 @@ export function getDb() {
 
 // For convenience, export a db proxy as well
 export const db = new Proxy({} as ReturnType<typeof drizzle>, {
-  get: (target, prop) => {
+  get: (_target, prop) => {
     const actualDb = getDb();
     const value = (actualDb as any)[prop];
     return typeof value === 'function' ? value.bind(actualDb) : value;

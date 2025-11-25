@@ -37,7 +37,7 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
     await saveProject({
       id: projectId,
       name: `Project ${projectId}`,
-      isMonitored: true,
+      enabled: true,
     });
 
     // 2. Save the main commit
@@ -56,44 +56,45 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
 
     // 3. Save all merge requests
     const mrIds: number[] = [];
-    for (const mr of chain.mergeRequests) {
+    for (const mrLink of chain.mergeRequests) {
+      const mr = mrLink.mergeRequest;
       await saveMergeRequest({
+        id: mr.id,
         iid: mr.iid,
         projectId: mr.project_id.toString(),
         title: mr.title,
-        description: mr.description,
+        description: mr.description || undefined,
         state: mr.state,
-        sourceBranch: mr.source_branch,
-        targetBranch: mr.target_branch,
         webUrl: mr.web_url,
-        authorName: mr.author?.name,
         createdAt: mr.created_at ? new Date(mr.created_at) : undefined,
         updatedAt: mr.updated_at ? new Date(mr.updated_at) : undefined,
         mergedAt: mr.merged_at ? new Date(mr.merged_at) : undefined,
-        closedAt: mr.closed_at ? new Date(mr.closed_at) : undefined,
       });
-      mrIds.push(mr.iid);
+      mrIds.push(mr.id);
     }
 
     // 4. Save all issues and collect their labels
     const issueIds: number[] = [];
     const allLabels: string[] = [];
 
-    for (const issue of chain.issues) {
+    for (const issueLink of chain.issues) {
+      const issue = issueLink.issue;
       await saveIssue({
+        id: issue.id,
         iid: issue.iid,
         projectId: issue.project_id.toString(),
+        epicId: issueLink.epic?.id,
+        teamId: undefined, // Will be set later after extracting teams
         title: issue.title,
-        description: issue.description,
+        description: issue.description || undefined,
         state: issue.state,
         labels: issue.labels,
         webUrl: issue.web_url,
-        authorName: issue.author?.name,
         createdAt: issue.created_at ? new Date(issue.created_at) : undefined,
         updatedAt: issue.updated_at ? new Date(issue.updated_at) : undefined,
         closedAt: issue.closed_at ? new Date(issue.closed_at) : undefined,
       });
-      issueIds.push(issue.iid);
+      issueIds.push(issue.id);
 
       // Collect labels
       if (issue.labels) {
@@ -106,24 +107,17 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
     for (const epic of chain.epics) {
       await saveEpic({
         id: epic.id,
-        groupId: epic.group_id?.toString() || 'unknown',
+        groupId: epic.group_id || 0,
         iid: epic.iid,
         title: epic.title,
-        description: epic.description,
+        description: epic.description || undefined,
         state: epic.state,
-        labels: epic.labels,
         webUrl: epic.web_url,
-        authorName: epic.author?.name,
         createdAt: epic.created_at ? new Date(epic.created_at) : undefined,
         updatedAt: epic.updated_at ? new Date(epic.updated_at) : undefined,
         closedAt: epic.closed_at ? new Date(epic.closed_at) : undefined,
       });
       epicIds.push(epic.id);
-
-      // Collect epic labels
-      if (epic.labels) {
-        allLabels.push(...epic.labels);
-      }
     }
 
     // 6. Extract and save teams
@@ -133,7 +127,7 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
     console.log(`   Teams identified: ${teamNames.join(', ') || 'none'}`);
 
     // 7. Save the commit chain (with denormalized arrays)
-    const chainId = await saveCommitChain({
+    await saveCommitChain({
       commitSha: chain.commit.id,
       projectId,
       mergeRequestIds: mrIds,
@@ -147,51 +141,38 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
     });
 
     // 8. Save analysis if provided
+    let analysisId: number | undefined;
     if (analysis) {
-      // For now, save as a summary analysis
-      // We could split this into multiple analysis records if needed
-      const analysisContent = JSON.stringify({
-        summary: analysis.summary,
-        keyChanges: analysis.keyChanges,
-        impact: analysis.impact,
-        relatedWork: analysis.relatedWork,
-        concerns: analysis.concerns,
-        recommendations: analysis.recommendations,
-      });
-
-      await saveAnalysis({
-        commitChainId: chainId,
+      const savedAnalysis = await saveAnalysis({
         commitSha: chain.commit.id,
-        analysisType: 'summary',
-        content: analysisContent,
-        model: analysis.model,
-        promptTokens: analysis.usage?.prompt_tokens,
-        completionTokens: analysis.usage?.completion_tokens,
-        totalTokens: analysis.usage?.total_tokens,
+        reason: analysis.reason,
+        approach: analysis.approach,
+        impact: analysis.impact,
+        alignment: analysis.alignment,
+        alignmentNotes: analysis.alignmentNotes,
+        confidence: analysis.confidence,
+        provider: analysis.metadata.provider,
+        model: analysis.metadata.model,
+        tokensUsed: analysis.metadata.tokensUsed,
+        costUsd: analysis.metadata.costUsd,
+        durationMs: analysis.metadata.durationMs,
       });
+      analysisId = savedAnalysis.id;
     }
 
     // 9. Save stakeholder updates if provided
-    if (updates) {
-      // Save technical update
-      if (updates.technicalUpdate) {
-        await saveUpdate({
-          commitChainId: chainId,
-          commitSha: chain.commit.id,
-          updateType: 'technical',
-          content: updates.technicalUpdate,
-        });
-      }
-
-      // Save business update
-      if (updates.businessUpdate) {
-        await saveUpdate({
-          commitChainId: chainId,
-          commitSha: chain.commit.id,
-          updateType: 'business',
-          content: updates.businessUpdate,
-        });
-      }
+    if (updates && (updates.technicalUpdate || updates.businessUpdate)) {
+      await saveUpdate({
+        commitSha: chain.commit.id,
+        analysisId,
+        technicalUpdate: updates.technicalUpdate || '',
+        businessUpdate: updates.businessUpdate || '',
+        provider: 'anthropic',
+        model: undefined,
+        tokensUsed: undefined,
+        costUsd: 0,
+        durationMs: undefined,
+      });
     }
 
     console.log(`✅ Persisted commit chain for ${commitSha.substring(0, 8)}`);
@@ -205,31 +186,27 @@ export async function persistCommitChain(params: PersistCommitChainParams): Prom
 }
 
 /**
- * Persist only updates for an existing commit chain
+ * Persist only updates for an existing commit
  */
 export async function persistUpdates(
-  commitChainId: number,
   commitSha: string,
-  updates: StakeholderUpdate
+  updates: StakeholderUpdate,
+  analysisId?: number
 ): Promise<void> {
   console.log(`💾 Persisting updates for ${commitSha.substring(0, 8)}...`);
 
   try {
-    if (updates.technicalUpdate) {
+    if (updates.technicalUpdate || updates.businessUpdate) {
       await saveUpdate({
-        commitChainId,
         commitSha,
-        updateType: 'technical',
-        content: updates.technicalUpdate,
-      });
-    }
-
-    if (updates.businessUpdate) {
-      await saveUpdate({
-        commitChainId,
-        commitSha,
-        updateType: 'business',
-        content: updates.businessUpdate,
+        analysisId,
+        technicalUpdate: updates.technicalUpdate || '',
+        businessUpdate: updates.businessUpdate || '',
+        provider: 'anthropic',
+        model: undefined,
+        tokensUsed: undefined,
+        costUsd: 0,
+        durationMs: undefined,
       });
     }
 

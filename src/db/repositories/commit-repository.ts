@@ -5,7 +5,6 @@
 import { db } from '../connection';
 import { commits, commitChains } from '../schema';
 import { eq, desc, and, inArray, gte, lte, sql } from 'drizzle-orm';
-import type { Commit, CommitChain } from '../../types/gitlab';
 
 export interface SaveCommitParams {
   sha: string;

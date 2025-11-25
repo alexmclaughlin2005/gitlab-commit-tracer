@@ -15,6 +15,7 @@ import { FeedMonitor, CommitProcessor, monitorConfig } from '../monitoring';
 import type { CommitChain } from '../tracing/types';
 import type { AnalysisResult, StakeholderUpdate } from '../analysis/types';
 import { persistCommitChain } from '../db/services/commit-persistence';
+import { getNotificationService, createSlackClientFromEnv } from '../notifications';
 
 // Load environment variables
 dotenv.config();
@@ -55,6 +56,16 @@ let commitAnalyzer: CommitAnalyzer | null = null;
 let feedMonitor: FeedMonitor | null = null;
 let commitProcessor: CommitProcessor | null = null;
 const monitoredCommits: Map<string, MonitoredCommit> = new Map();
+
+// Initialize notification system
+const notificationService = getNotificationService();
+const slackClient = createSlackClientFromEnv();
+if (slackClient) {
+  notificationService.registerProvider(slackClient);
+  console.log('✅ Slack notifications enabled');
+} else {
+  console.log('ℹ️  Slack notifications disabled (SLACK_WEBHOOK_URL not configured)');
+}
 
 function getClient(): GitLabClient {
   if (!gitlabClient) {
@@ -105,6 +116,23 @@ function getMonitor(): FeedMonitor {
       console.log(`📢 New commit detected: ${event.commit.sha.substring(0, 8)}`);
       monitoredCommits.set(event.commit.sha, { commit: event.commit });
       commitProcessor!.enqueue(event.commit);
+
+      // Send notification for commit detected (optional, usually disabled)
+      notificationService.notifyCommitDetected({
+        projectId: event.commit.projectId,
+        projectName: event.projectName,
+        sha: event.commit.sha,
+        title: event.commit.title,
+        authorName: event.commit.authorName,
+        authorEmail: event.commit.authorEmail,
+        branch: event.commit.branch,
+        committedAt: event.commit.committedAt,
+        commitUrl: process.env.GITLAB_URL
+          ? `${process.env.GITLAB_URL}/${event.commit.projectId}/-/commit/${event.commit.sha}`
+          : undefined,
+      }).catch((error) => {
+        console.error('Failed to send commit detected notification:', error);
+      });
     });
 
     commitProcessor.on('commitProcessed', (event: any, chain?: CommitChain) => {
@@ -137,11 +165,40 @@ function getMonitor(): FeedMonitor {
                 analysis: analysisResult.analysis,
                 updates: analysisResult.updates,
               });
+
+              // Send notification for completed analysis
+              await notificationService.notifyAnalysisComplete({
+                projectId: event.commit.projectId,
+                projectName: event.projectName,
+                sha: event.commit.sha,
+                title: event.commit.title,
+                authorName: event.commit.authorName,
+                authorEmail: event.commit.authorEmail,
+                branch: event.commit.branch,
+                committedAt: event.commit.committedAt,
+                chain,
+                analysis: analysisResult.analysis,
+                updates: analysisResult.updates,
+                gitlabUrl: process.env.GITLAB_URL,
+              });
+
+              console.log(`📤 Notification sent for ${event.commit.sha.substring(0, 8)}`);
             } catch (error) {
               console.error(
                 `❌ Failed to generate updates for ${event.commit.sha.substring(0, 8)}:`,
                 error instanceof Error ? error.message : error
               );
+
+              // Send error notification
+              notificationService.notifyError({
+                projectId: event.commit.projectId,
+                projectName: event.projectName,
+                sha: event.commit.sha,
+                error: error instanceof Error ? error.message : String(error),
+                stackTrace: error instanceof Error ? error.stack : undefined,
+              }).catch((notifyError) => {
+                console.error('Failed to send error notification:', notifyError);
+              });
             }
           })(); // Execute immediately but don't await
         }
@@ -392,14 +449,15 @@ app.get('/api/history/teams', async (_req: Request, res: Response) => {
  * GET /api/history/teams/:id
  * Get a specific team
  */
-app.get('/api/history/teams/:id', async (req: Request, res: Response) => {
+app.get('/api/history/teams/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { getTeamById } = await import('../db/repositories/team-repository');
     const teamId = parseInt(req.params.id);
     const team = await getTeamById(teamId);
 
     if (!team) {
-      return res.status(404).json({ error: 'Team not found' });
+      res.status(404).json({ error: 'Team not found' });
+      return;
     }
 
     res.json(team);
@@ -444,11 +502,9 @@ app.get('/api/history/teams/:id/updates', async (req: Request, res: Response) =>
     const teamId = parseInt(req.params.id);
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
-    const updateType = req.query.type as 'technical' | 'business' | undefined;
 
     const updates = await searchUpdates({
       teamIds: [teamId],
-      updateType,
       limit,
       offset,
     });
@@ -487,14 +543,15 @@ app.get('/api/history/epics', async (req: Request, res: Response) => {
  * GET /api/history/epics/:id
  * Get a specific epic
  */
-app.get('/api/history/epics/:id', async (req: Request, res: Response) => {
+app.get('/api/history/epics/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { getEpicById } = await import('../db/repositories/gitlab-entity-repository');
     const epicId = parseInt(req.params.id);
     const epic = await getEpicById(epicId);
 
     if (!epic) {
-      return res.status(404).json({ error: 'Epic not found' });
+      res.status(404).json({ error: 'Epic not found' });
+      return;
     }
 
     res.json(epic);
@@ -539,11 +596,9 @@ app.get('/api/history/epics/:id/updates', async (req: Request, res: Response) =>
     const epicId = parseInt(req.params.id);
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
-    const updateType = req.query.type as 'technical' | 'business' | undefined;
 
     const updates = await searchUpdates({
       epicIds: [epicId],
-      updateType,
       limit,
       offset,
     });
@@ -601,27 +656,28 @@ app.get('/api/history/commits', async (req: Request, res: Response) => {
  * GET /api/history/commits/:sha
  * Get a commit with its full chain and updates
  */
-app.get('/api/history/commits/:sha', async (req: Request, res: Response) => {
+app.get('/api/history/commits/:sha', async (req: Request, res: Response): Promise<void> => {
   try {
     const { getCommitBySha, getCommitChainBySha } = await import('../db/repositories/commit-repository');
-    const { getUpdatesByCommit } = await import('../db/repositories/update-repository');
-    const { getAnalysesByCommit } = await import('../db/repositories/analysis-repository');
+    const { getUpdateByCommit } = await import('../db/repositories/update-repository');
+    const { getAnalysisByCommit } = await import('../db/repositories/analysis-repository');
 
     const commit = await getCommitBySha(req.params.sha);
 
     if (!commit) {
-      return res.status(404).json({ error: 'Commit not found' });
+      res.status(404).json({ error: 'Commit not found' });
+      return;
     }
 
     const chain = await getCommitChainBySha(req.params.sha);
-    const updates = await getUpdatesByCommit(req.params.sha);
-    const analyses = await getAnalysesByCommit(req.params.sha);
+    const update = await getUpdateByCommit(req.params.sha);
+    const analysis = await getAnalysisByCommit(req.params.sha);
 
     res.json({
       commit,
       chain,
-      updates,
-      analyses,
+      update,
+      analysis,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -636,9 +692,8 @@ app.get('/api/history/updates/recent', async (req: Request, res: Response) => {
   try {
     const { getRecentUpdates } = await import('../db/repositories/update-repository');
     const limit = parseInt(req.query.limit as string) || 50;
-    const updateType = req.query.type as 'technical' | 'business' | undefined;
 
-    const updates = await getRecentUpdates(limit, updateType);
+    const updates = await getRecentUpdates(limit);
 
     res.json({
       updates,
@@ -896,6 +951,49 @@ app.post('/api/monitor/retry/:sha', (req: Request, res: Response) => {
     res.json({
       success: true,
       message: `Retrying commit ${sha.substring(0, 8)}`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// Notification API Routes
+// =============================================================================
+
+/**
+ * GET /api/notifications/status
+ * Get notification service status
+ */
+app.get('/api/notifications/status', (_req: Request, res: Response) => {
+  try {
+    const providers = notificationService.getProviders();
+    const providerStatus = providers.map((p) => ({
+      name: p.name,
+      config: slackClient?.getConfig(),
+    }));
+
+    res.json({
+      enabled: providers.length > 0,
+      providers: providerStatus,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/notifications/test
+ * Test notification connections
+ */
+app.post('/api/notifications/test', async (_req: Request, res: Response) => {
+  try {
+    const results = await notificationService.testAll();
+    const resultsObj = Object.fromEntries(results);
+
+    res.json({
+      success: Array.from(results.values()).every((r) => r),
+      results: resultsObj,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

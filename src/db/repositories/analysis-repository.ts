@@ -4,17 +4,20 @@
 
 import { db } from '../connection';
 import { analyses } from '../schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 export interface SaveAnalysisParams {
-  commitChainId: number;
   commitSha: string;
-  analysisType: 'technical' | 'business' | 'summary' | 'impact';
-  content: string;
+  reason: string;
+  approach: string;
+  impact: string;
+  alignment: string;
+  alignmentNotes?: string;
+  confidence?: number;
+  provider?: string;
   model?: string;
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens?: number;
+  tokensUsed?: number;
+  costUsd?: number;
   durationMs?: number;
 }
 
@@ -25,14 +28,17 @@ export async function saveAnalysis(params: SaveAnalysisParams) {
   const result = await db
     .insert(analyses)
     .values({
-      commitChainId: params.commitChainId,
       commitSha: params.commitSha,
-      analysisType: params.analysisType,
-      content: params.content,
+      reason: params.reason,
+      approach: params.approach,
+      impact: params.impact,
+      alignment: params.alignment,
+      alignmentNotes: params.alignmentNotes,
+      confidence: params.confidence ? params.confidence.toString() : undefined,
+      provider: params.provider,
       model: params.model,
-      promptTokens: params.promptTokens,
-      completionTokens: params.completionTokens,
-      totalTokens: params.totalTokens,
+      tokensUsed: params.tokensUsed,
+      costUsd: params.costUsd ? params.costUsd.toString() : undefined,
       durationMs: params.durationMs,
     })
     .returning();
@@ -41,42 +47,17 @@ export async function saveAnalysis(params: SaveAnalysisParams) {
 }
 
 /**
- * Get all analyses for a commit
+ * Get analysis for a commit
  */
-export async function getAnalysesByCommit(commitSha: string) {
-  return db
-    .select()
-    .from(analyses)
-    .where(eq(analyses.commitSha, commitSha))
-    .orderBy(desc(analyses.createdAt));
-}
-
-/**
- * Get a specific analysis by commit and type
- */
-export async function getAnalysisByCommitAndType(
-  commitSha: string,
-  analysisType: 'technical' | 'business' | 'summary' | 'impact'
-) {
+export async function getAnalysisByCommit(commitSha: string) {
   const result = await db
     .select()
     .from(analyses)
-    .where(and(eq(analyses.commitSha, commitSha), eq(analyses.analysisType, analysisType)))
-    .orderBy(desc(analyses.createdAt))
+    .where(eq(analyses.commitSha, commitSha))
+    .orderBy(desc(analyses.analyzedAt))
     .limit(1);
 
   return result[0] || null;
-}
-
-/**
- * Get all analyses for a commit chain
- */
-export async function getAnalysesByChain(commitChainId: number) {
-  return db
-    .select()
-    .from(analyses)
-    .where(eq(analyses.commitChainId, commitChainId))
-    .orderBy(desc(analyses.createdAt));
 }
 
 /**
@@ -94,5 +75,5 @@ export async function deleteAnalysis(id: number): Promise<boolean> {
  * Get recent analyses across all commits
  */
 export async function getRecentAnalyses(limit: number = 50) {
-  return db.select().from(analyses).orderBy(desc(analyses.createdAt)).limit(limit);
+  return db.select().from(analyses).orderBy(desc(analyses.analyzedAt)).limit(limit);
 }

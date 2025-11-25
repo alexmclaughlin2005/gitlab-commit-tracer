@@ -73,6 +73,12 @@ This tool helps development teams communicate progress effectively by:
   - Frontend on Vercel for static hosting
   - CORS-enabled API with environment-based configuration
   - Automatic redeployment on git push
+- **Slack Notifications**: Real-time team updates
+  - Automatic notifications when AI analysis completes
+  - Rich message formatting with Block Kit
+  - Includes commit details, relationship chain, and stakeholder updates
+  - Configurable event types and content
+  - Error notifications for failed processing
 
 ### Planned (Phase 5)
 - Historical data storage with Supabase
@@ -99,6 +105,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment instructions and configuration
 - npm or yarn
 - GitLab API access token
 - OpenAI API key (for AI analysis)
+- Slack Incoming Webhook URL (optional, for notifications)
 
 ## Installation
 
@@ -127,7 +134,13 @@ GITLAB_PROJECT_ID=your-project-id-or-path
 
 # OpenAI Configuration (for AI analysis)
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Slack Notifications (optional)
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+SLACK_ENABLED=true
 ```
+
+See [.env.example](.env.example) for all available configuration options.
 
 ## Usage
 
@@ -274,7 +287,11 @@ CommitTracer (Build MR → Issue → Epic chain)
     ↓
 AI Analyzer (Generate stakeholder updates in parallel)
     ↓
-Web Dashboard (Real-time feed display)
+┌───────────────────┴────────────────────┐
+│                                        │
+▼                                        ▼
+Web Dashboard                        Slack Notification
+(Real-time feed display)             (Team updates)
 ```
 
 ### Deployment Architecture
@@ -302,6 +319,7 @@ Frontend (Vercel) → Backend API (Railway) → GitLab API
 - [docs/architecture.md](docs/architecture.md) - System architecture details
 - [docs/gitlab-api.md](docs/gitlab-api.md) - GitLab API integration guide
 - [docs/ai-analysis.md](docs/ai-analysis.md) - AI analysis approach
+- [src/notifications/README.md](src/notifications/README.md) - Slack notification setup and configuration
 
 ## Development
 
@@ -310,12 +328,13 @@ Frontend (Vercel) → Backend API (Railway) → GitLab API
 ```
 /
 ├── src/
-│   ├── api/          # GitLab API client
-│   ├── tracing/      # Commit-to-epic tracing logic
-│   ├── analysis/     # AI context analysis (OpenAI integration)
-│   ├── monitoring/   # FeedMonitor & CommitProcessor
-│   ├── server/       # Express REST API server
-│   └── index.ts      # CLI entry point
+│   ├── api/            # GitLab API client
+│   ├── tracing/        # Commit-to-epic tracing logic
+│   ├── analysis/       # AI context analysis (OpenAI integration)
+│   ├── monitoring/     # FeedMonitor & CommitProcessor
+│   ├── notifications/  # Slack/Discord/email notifications
+│   ├── server/         # Express REST API server
+│   └── index.ts        # CLI entry point
 ├── ui/
 │   └── public/       # Static web dashboard
 ├── config/           # Project configuration (projects.json)
