@@ -94,12 +94,32 @@ function getMonitor(): FeedMonitor {
       commitProcessor!.enqueue(event.commit);
     });
 
-    commitProcessor.on('commitProcessed', (event: any, chain?: CommitChain) => {
+    commitProcessor.on('commitProcessed', async (event: any, chain?: CommitChain) => {
       if (event.success && chain) {
         console.log(`✅ Commit processed: ${event.commit.sha.substring(0, 8)}`);
         const existing = monitoredCommits.get(event.commit.sha);
         if (existing) {
           existing.chain = chain;
+
+          // Automatically generate stakeholder updates
+          try {
+            console.log(`🤖 Generating stakeholder updates for ${event.commit.sha.substring(0, 8)}...`);
+            const analyzer = getAnalyzer();
+            const analysisResult = await analyzer.analyzeCommitWithUpdates(chain);
+
+            // Store the analysis and updates with the commit
+            existing.analysis = analysisResult.analysis;
+            existing.updates = analysisResult.updates;
+
+            console.log(`✨ Generated updates for ${event.commit.sha.substring(0, 8)}`);
+            console.log(`   Technical: ${analysisResult.updates.technicalUpdate.substring(0, 80)}...`);
+            console.log(`   Business: ${analysisResult.updates.businessUpdate.substring(0, 80)}...`);
+          } catch (error) {
+            console.error(
+              `❌ Failed to generate updates for ${event.commit.sha.substring(0, 8)}:`,
+              error instanceof Error ? error.message : error
+            );
+          }
         }
       }
     });

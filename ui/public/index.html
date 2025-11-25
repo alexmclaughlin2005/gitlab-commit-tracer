@@ -1184,9 +1184,10 @@
                     const commit = item.commit;
                     const chain = item.chain;
                     const hasChain = chain && chain.mergeRequests;
+                    const hasUpdates = item.updates && item.updates.technicalUpdate;
 
                     return `
-                        <div class="commit-card" style="border-left: 4px solid ${hasChain ? '#2ecc71' : '#f39c12'}; margin-bottom: 15px;">
+                        <div class="commit-card" style="border-left: 4px solid ${hasUpdates ? '#9b59b6' : hasChain ? '#2ecc71' : '#f39c12'}; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                                 <div>
                                     <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">
@@ -1201,19 +1202,46 @@
                                     </div>
                                 </div>
                                 <div style="text-align: right; font-size: 0.85em;">
-                                    <div style="font-weight: 600; color: ${hasChain ? '#2ecc71' : '#f39c12'};">
-                                        ${hasChain ? '✅ Traced' : '⏳ Processing'}
+                                    <div style="font-weight: 600; color: ${hasUpdates ? '#9b59b6' : hasChain ? '#2ecc71' : '#f39c12'};">
+                                        ${hasUpdates ? '✨ Updates Ready' : hasChain ? '✅ Traced' : '⏳ Processing'}
                                     </div>
                                 </div>
                             </div>
 
                             ${hasChain ? `
-                                <div style="display: flex; gap: 15px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 6px; font-size: 0.9em;">
+                                <div style="display: flex; gap: 15px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 6px; font-size: 0.9em; margin-bottom: 10px;">
                                     <div>MRs: <strong>${chain.mergeRequests.length}</strong></div>
                                     <div>Issues: <strong>${chain.issues.length}</strong></div>
                                     <div>Epics: <strong>${chain.epics.length}</strong></div>
                                     <div>API Calls: ${chain.metadata.apiCallCount}</div>
                                     <div>Duration: ${chain.metadata.durationMs}ms</div>
+                                </div>
+                            ` : ''}
+
+                            ${hasUpdates ? `
+                                <div style="margin-top: 15px;">
+                                    <div style="margin-bottom: 15px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span style="font-weight: 600; color: #667eea;">👨‍💻 Technical Update</span>
+                                            ${item.analysis ? `<span style="font-size: 0.85em; color: #7f8c8d;">Confidence: ${(item.analysis.confidence * 100).toFixed(0)}%</span>` : ''}
+                                        </div>
+                                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #667eea; font-size: 0.9em; line-height: 1.5;">
+                                            ${escapeHtml(item.updates.technicalUpdate)}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span style="font-weight: 600; color: #28a745;">💼 Business Update</span>
+                                        </div>
+                                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #28a745; font-size: 0.9em; line-height: 1.5;">
+                                            ${escapeHtml(item.updates.businessUpdate)}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : hasChain ? `
+                                <div style="padding: 10px; background: #fff3cd; border-radius: 6px; font-size: 0.85em; color: #856404;">
+                                    🤖 AI analysis in progress... Updates will appear here shortly.
                                 </div>
                             ` : ''}
                         </div>
