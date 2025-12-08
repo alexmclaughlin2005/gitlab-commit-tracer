@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - GitLab Commit Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .auth-header p {
+            color: #7f8c8d;
+            font-size: 1em;
+        }
+
+        .clerk-component {
+            margin: 20px 0;
+        }
+
+        .auth-disabled-message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .auth-disabled-message h2 {
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+
+        .auth-disabled-message p {
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>🔍 GitLab Commit Tracer</h1>
+            <p>Create your account</p>
+        </div>
+
+        <div id="clerkMountPoint" class="clerk-component">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading authentication...</p>
+            </div>
+        </div>
+
+        <div id="authDisabled" class="auth-disabled-message" style="display: none;">
+            <h2>Authentication Not Enabled</h2>
+            <p>
+                Authentication is currently disabled on this instance.
+                Please contact your administrator if you believe this is an error.
+            </p>
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Environment-aware configuration
+        const CLERK_PUBLISHABLE_KEY = '__CLERK_PUBLISHABLE_KEY__'; // Will be replaced by server
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:3005/api'
+            : '/api';
+
+        // Check if authentication is enabled
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/config`);
+                const config = await response.json();
+
+                if (!config.enabled) {
+                    document.getElementById('clerkMountPoint').style.display = 'none';
+                    document.getElementById('authDisabled').style.display = 'block';
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Failed to check auth status:', error);
+                // Assume enabled if check fails
+                return true;
+            }
+        }
+
+        // Load Clerk script and initialize
+        async function initializeClerk() {
+            const authEnabled = await checkAuthStatus();
+
+            if (!authEnabled) {
+                return;
+            }
+
+            // Load Clerk script dynamically
+            const script = document.createElement('script');
+            script.src = 'https://accounts.clerk.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+            script.crossOrigin = 'anonymous';
+            script.onload = async () => {
+                try {
+                    // Initialize Clerk
+                    const clerk = window.Clerk;
+                    await clerk.load({
+                        publishableKey: CLERK_PUBLISHABLE_KEY,
+                    });
+
+                    // Check if already signed in
+                    if (clerk.user) {
+                        // Get redirect URL from query params
+                        const params = new URLSearchParams(window.location.search);
+                        const redirectUrl = params.get('redirect_url') || '/';
+                        window.location.href = redirectUrl;
+                        return;
+                    }
+
+                    // Mount sign-up component
+                    const signUpDiv = document.getElementById('clerkMountPoint');
+                    signUpDiv.innerHTML = ''; // Clear loading message
+
+                    clerk.mountSignUp(signUpDiv, {
+                        afterSignUpUrl: new URLSearchParams(window.location.search).get('redirect_url') || '/',
+                        signInUrl: '/sign-in' + window.location.search,
+                    });
+                } catch (error) {
+                    console.error('Failed to initialize Clerk:', error);
+                    document.getElementById('clerkMountPoint').innerHTML = `
+                        <div style="text-align: center; color: #e74c3c; padding: 20px;">
+                            <p><strong>Failed to load authentication</strong></p>
+                            <p style="margin-top: 10px; font-size: 0.9em;">
+                                ${error.message}
+                            </p>
+                            <a href="/" class="back-link" style="margin-top: 20px;">← Back to Home</a>
+                        </div>
+                    `;
+                }
+            };
+
+            script.onerror = () => {
+                document.getElementById('clerkMountPoint').innerHTML = `
+                    <div style="text-align: center; color: #e74c3c; padding: 20px;">
+                        <p><strong>Failed to load authentication script</strong></p>
+                        <p style="margin-top: 10px; font-size: 0.9em;">
+                            Please check your internet connection and try again.
+                        </p>
+                        <a href="/" class="back-link" style="margin-top: 20px;">← Back to Home</a>
+                    </div>
+                `;
+            };
+
+            document.head.appendChild(script);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeClerk);
+    </script>
+</body>
+</html>

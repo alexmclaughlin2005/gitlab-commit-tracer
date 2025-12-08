@@ -16,6 +16,8 @@ import type { CommitChain } from '../tracing/types';
 import type { AnalysisResult, StakeholderUpdate } from '../analysis/types';
 import { persistCommitChain } from '../db/services/commit-persistence';
 import { getNotificationService, createSlackClientFromEnv } from '../notifications';
+import { clerkAuthMiddleware, requireUIAuth, authConfig } from '../middleware/auth';
+import fs from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -36,8 +38,32 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Serve static files from ui/public directory
+// Authentication middleware (feature-flagged)
+app.use(clerkAuthMiddleware);
+
+// Serve static files from ui/public directory with HTML preprocessing
 app.use(express.static(path.join(__dirname, '../../ui/public')));
+
+// Custom middleware to inject Clerk publishable key into HTML files
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') && authConfig.enabled) {
+    const filePath = path.join(__dirname, '../../ui/public', req.path);
+
+    if (fs.existsSync(filePath)) {
+      let html = fs.readFileSync(filePath, 'utf-8');
+
+      // Replace placeholder with actual publishable key
+      if (process.env.CLERK_PUBLISHABLE_KEY) {
+        html = html.replace(/__CLERK_PUBLISHABLE_KEY__/g, process.env.CLERK_PUBLISHABLE_KEY);
+      }
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+      return;
+    }
+  }
+  next();
+});
 
 // Type for monitored commits with analysis
 interface MonitoredCommit {
@@ -249,6 +275,47 @@ app.get('/api/status', async (_req: Request, res: Response) => {
       error: error.message,
     });
   }
+});
+
+/**
+ * GET /api/auth/config
+ * Get authentication configuration (for frontend)
+ */
+app.get('/api/auth/config', (_req: Request, res: Response) => {
+  res.json({
+    enabled: authConfig.enabled,
+    enforceUI: authConfig.enforceUI,
+    enforceAPI: authConfig.enforceAPI,
+    signInUrl: authConfig.signInUrl,
+    publishableKey: authConfig.enabled ? process.env.CLERK_PUBLISHABLE_KEY : null,
+  });
+});
+
+/**
+ * GET /api/auth/user
+ * Get current user info (if authenticated)
+ */
+app.get('/api/auth/user', (req: Request, res: Response) => {
+  if (!authConfig.enabled) {
+    res.status(503).json({
+      error: 'Authentication not enabled',
+    });
+    return;
+  }
+
+  if (!req.auth?.userId) {
+    res.status(401).json({
+      error: 'Not authenticated',
+      signInUrl: authConfig.signInUrl,
+    });
+    return;
+  }
+
+  res.json({
+    userId: req.auth.userId,
+    sessionId: req.auth.sessionId,
+    user: req.auth.user,
+  });
 });
 
 /**
