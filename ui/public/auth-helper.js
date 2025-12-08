@@ -7,7 +7,7 @@
 
 // Configuration
 const AUTH_CONFIG = {
-    publishableKey: 'pk_test_ZmFjdHVhbC1tYW4tMjAuY2xlcmsuYWNjb3VudHMuZGV2JA',
+    publishableKey: 'pk_test_Y2FsbS1naXJhZmZlLTEwLmNsZXJrLmFjY291bnRzLmRldiQ',
     apiBase: window.location.hostname === 'localhost'
         ? 'http://localhost:3005/api'
         : 'https://web-production-7418.up.railway.app/api',
@@ -55,7 +55,7 @@ async function initializeAuth() {
 
         // Load Clerk script from your Clerk instance's Frontend API
         const script = document.createElement('script');
-        script.src = 'https://factual-man-20.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+        script.src = 'https://calm-giraffe-10.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
         script.async = true;
         script.crossOrigin = 'anonymous';
         script.setAttribute('data-clerk-publishable-key', AUTH_CONFIG.publishableKey);
