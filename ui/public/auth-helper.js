@@ -56,7 +56,9 @@ async function initializeAuth() {
         // Load Clerk script from your Clerk instance's Frontend API
         const script = document.createElement('script');
         script.src = 'https://factual-man-20.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+        script.async = true;
         script.crossOrigin = 'anonymous';
+        script.setAttribute('data-clerk-publishable-key', AUTH_CONFIG.publishableKey);
 
         script.onload = async () => {
             try {
@@ -82,9 +84,15 @@ async function initializeAuth() {
  */
 async function initializeClerkInstance() {
     const clerk = window.Clerk;
-    await clerk.load({
-        publishableKey: AUTH_CONFIG.publishableKey,
-    });
+
+    // Clerk should auto-initialize with the data-clerk-publishable-key attribute
+    // If not initialized, manually load with the key
+    if (!clerk) {
+        throw new Error('Clerk SDK failed to load');
+    }
+
+    // Wait for Clerk to be ready
+    await clerk.load();
 
     clerkInstance = clerk;
     return clerk;

@@ -167,14 +167,14 @@
             // Load Clerk script dynamically from your Clerk instance's Frontend API
             const script = document.createElement('script');
             script.src = 'https://factual-man-20.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+            script.async = true;
             script.crossOrigin = 'anonymous';
+            script.setAttribute('data-clerk-publishable-key', CLERK_PUBLISHABLE_KEY);
             script.onload = async () => {
                 try {
                     // Initialize Clerk
                     const clerk = window.Clerk;
-                    await clerk.load({
-                        publishableKey: CLERK_PUBLISHABLE_KEY,
-                    });
+                    await clerk.load();
 
                     // Check if already signed in
                     if (clerk.user) {
