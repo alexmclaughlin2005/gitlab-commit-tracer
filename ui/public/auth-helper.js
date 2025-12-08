@@ -165,7 +165,8 @@ async function handleSignOut(event) {
 
     try {
         await clerkInstance.signOut();
-        window.location.href = '/sign-in';
+        // Redirect to home page after sign out
+        window.location.href = '/';
     } catch (error) {
         console.error('Sign out failed:', error);
         alert('Failed to sign out. Please try again.');
