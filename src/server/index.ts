@@ -26,11 +26,35 @@ const app = express();
 const PORT = process.env.PORT || 3005;
 
 // CORS configuration - allow all origins in development, specific origins in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : ['*'];
+
+console.log('🌐 CORS Configuration:');
+console.log('  - Allowed Origins:', allowedOrigins);
+console.log('  - NODE_ENV:', process.env.NODE_ENV);
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === 'production'
-      ? process.env.ALLOWED_ORIGINS?.split(',') || '*'
-      : '*',
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // If ALLOWED_ORIGINS is *, allow all
+    if (allowedOrigins.includes('*')) {
+      callback(null, true);
+      return;
+    }
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
