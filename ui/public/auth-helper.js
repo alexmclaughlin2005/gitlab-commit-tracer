@@ -186,18 +186,17 @@ function checkUIAuthEnforcement() {
         return;
     }
 
-    // Check if this is an auth page (don't redirect from auth pages)
-    const currentPath = window.location.pathname;
-    if (currentPath === '/sign-in' || currentPath === '/sign-in.html' ||
-        currentPath === '/sign-up' || currentPath === '/sign-up.html') {
-        return;
-    }
-
     // Check if user is signed in
     if (!clerkInstance || !clerkInstance.user) {
-        // Redirect to sign-in
-        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.href = `/sign-in?redirect_url=${returnUrl}`;
+        // Redirect to Clerk's sign-in
+        if (clerkInstance) {
+            clerkInstance.redirectToSignIn({
+                returnBackUrl: window.location.href
+            });
+        } else {
+            // Fallback to direct URL
+            window.location.href = 'https://calm-giraffe-10.clerk.accounts.dev/sign-in?redirect_url=' + encodeURIComponent(window.location.href);
+        }
     }
 }
 
