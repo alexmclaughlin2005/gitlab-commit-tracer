@@ -10,7 +10,7 @@ const AUTH_CONFIG = {
     publishableKey: '__CLERK_PUBLISHABLE_KEY__',
     apiBase: window.location.hostname === 'localhost'
         ? 'http://localhost:3005/api'
-        : '/api',
+        : 'https://web-production-7418.up.railway.app/api',
 };
 
 // Global Clerk instance
