@@ -53,9 +53,9 @@ async function initializeAuth() {
             return;
         }
 
-        // Load Clerk script
+        // Load Clerk script from your Clerk instance's Frontend API
         const script = document.createElement('script');
-        script.src = 'https://accounts.clerk.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+        script.src = 'https://factual-man-20.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
         script.crossOrigin = 'anonymous';
 
         script.onload = async () => {
