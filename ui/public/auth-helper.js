@@ -5,9 +5,9 @@
  * It's designed to work with Clerk authentication in a feature-flagged manner.
  */
 
-// Configuration (will be dynamically replaced by server if needed)
+// Configuration
 const AUTH_CONFIG = {
-    publishableKey: '__CLERK_PUBLISHABLE_KEY__',
+    publishableKey: 'pk_test_ZmFjdHVhbC1tYW4tMjAuY2xlcmsuYWNjb3VudHMuZGV2JA',
     apiBase: window.location.hostname === 'localhost'
         ? 'http://localhost:3005/api'
         : 'https://web-production-7418.up.railway.app/api',
