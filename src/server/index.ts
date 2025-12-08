@@ -32,6 +32,9 @@ const corsOptions = {
       ? process.env.ALLOWED_ORIGINS?.split(',') || '*'
       : '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
 };
 
 // Middleware
