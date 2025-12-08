@@ -16,7 +16,7 @@ import type { CommitChain } from '../tracing/types';
 import type { AnalysisResult, StakeholderUpdate } from '../analysis/types';
 import { persistCommitChain } from '../db/services/commit-persistence';
 import { getNotificationService, createSlackClientFromEnv } from '../notifications';
-import { clerkAuthMiddleware, requireUIAuth, authConfig } from '../middleware/auth';
+import { clerkAuthMiddleware, authConfig } from '../middleware/auth';
 import fs from 'fs';
 
 // Load environment variables
