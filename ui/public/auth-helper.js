@@ -136,15 +136,15 @@ function addUserMenuToHeader() {
             </div>
         `;
     } else {
-        // User is not signed in
+        // User is not signed in - use Clerk's redirect methods
         userMenuContainer.innerHTML = `
             <div style="display: flex; gap: 10px;">
-                <a href="/sign-in" style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s;">
+                <button onclick="window.clerkSignIn()" style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 500; transition: all 0.2s; cursor: pointer;">
                     Sign In
-                </a>
-                <a href="/sign-up" style="background: white; color: #667eea; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s;">
+                </button>
+                <button onclick="window.clerkSignUp()" style="background: white; color: #667eea; padding: 8px 16px; border-radius: 6px; border: none; font-weight: 500; transition: all 0.2s; cursor: pointer;">
                     Sign Up
-                </a>
+                </button>
             </div>
         `;
     }
@@ -272,7 +272,37 @@ window.addEventListener('load', async () => {
     }
 });
 
+/**
+ * Redirect to Clerk sign-in
+ */
+function clerkSignIn() {
+    if (clerkInstance) {
+        clerkInstance.redirectToSignIn({
+            returnBackUrl: window.location.href
+        });
+    } else {
+        // Fallback to Clerk's Account Portal URL
+        window.location.href = 'https://calm-giraffe-10.clerk.accounts.dev/sign-in?redirect_url=' + encodeURIComponent(window.location.href);
+    }
+}
+
+/**
+ * Redirect to Clerk sign-up
+ */
+function clerkSignUp() {
+    if (clerkInstance) {
+        clerkInstance.redirectToSignUp({
+            returnBackUrl: window.location.href
+        });
+    } else {
+        // Fallback to Clerk's Account Portal URL
+        window.location.href = 'https://calm-giraffe-10.clerk.accounts.dev/sign-up?redirect_url=' + encodeURIComponent(window.location.href);
+    }
+}
+
 // Make functions globally available
 window.handleSignOut = handleSignOut;
 window.authenticatedFetch = authenticatedFetch;
 window.getAuthToken = getAuthToken;
+window.clerkSignIn = clerkSignIn;
+window.clerkSignUp = clerkSignUp;
