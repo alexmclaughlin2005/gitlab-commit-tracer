@@ -388,11 +388,12 @@ app.get('/api/commits/:sha', async (req: Request, res: Response) => {
 
 /**
  * GET /api/commits/db/recent
- * Get recent commits from the database with full trace data
+ * Get recent commits from the database with full trace data including stakeholder updates
  */
 app.get('/api/commits/db/recent', async (req: Request, res: Response) => {
   try {
     const { getRecentCommits } = await import('../db/repositories/commit-repository');
+    const { getUpdateByCommit } = await import('../db/repositories/update-repository');
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
@@ -400,8 +401,19 @@ app.get('/api/commits/db/recent', async (req: Request, res: Response) => {
     const commits = await getRecentCommits(limit + offset);
     const paginatedCommits = commits.slice(offset, offset + limit);
 
+    // Fetch stakeholder updates for each commit
+    const commitsWithUpdates = await Promise.all(
+      paginatedCommits.map(async (commit) => {
+        const update = await getUpdateByCommit(commit.sha);
+        return {
+          ...commit,
+          stakeholderUpdate: update || null,
+        };
+      })
+    );
+
     res.json({
-      commits: paginatedCommits,
+      commits: commitsWithUpdates,
       pagination: {
         limit,
         offset,

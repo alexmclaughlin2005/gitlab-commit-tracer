@@ -2139,6 +2139,7 @@
                 const authorName = commit.authorName || commit.author_name || 'Unknown';
                 const authorEmail = commit.authorEmail || commit.author_email || '';
                 const shortId = commit.shortId || commit.short_id || commit.sha.substring(0, 8);
+                const stakeholderUpdate = commit.stakeholderUpdate;
 
                 return `
                     <div class="mr-card">
@@ -2163,7 +2164,29 @@
                             </div>
                         </div>
 
-                        ${commit.message ? `
+                        ${stakeholderUpdate && stakeholderUpdate.businessUpdate ? `
+                            <div style="margin-top: 15px; padding: 15px; background: #f0f7ff; border-left: 4px solid #667eea; border-radius: 4px;">
+                                <div style="font-weight: 600; color: #667eea; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                    <span>💼</span>
+                                    <span>Business Translation</span>
+                                </div>
+                                <div style="font-size: 0.95em; color: #2c3e50; line-height: 1.6;">
+                                    ${escapeHtml(stakeholderUpdate.businessUpdate)}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${stakeholderUpdate && stakeholderUpdate.technicalUpdate ? `
+                            <div style="margin-top: 10px; padding: 15px; background: #f5f5f5; border-left: 4px solid #95a5a6; border-radius: 4px;">
+                                <div style="font-weight: 600; color: #7f8c8d; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                    <span>🔧</span>
+                                    <span>Technical Summary</span>
+                                </div>
+                                <div style="font-size: 0.95em; color: #2c3e50; line-height: 1.6;">
+                                    ${escapeHtml(stakeholderUpdate.technicalUpdate)}
+                                </div>
+                            </div>
+                        ` : commit.message ? `
                             <div style="margin-top: 10px; font-size: 0.9em; color: #7f8c8d; line-height: 1.5; white-space: pre-wrap;">
                                 ${escapeHtml(commit.message.substring(0, 300))}${commit.message.length > 300 ? '...' : ''}
                             </div>
