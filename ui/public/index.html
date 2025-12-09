@@ -489,6 +489,196 @@
             height: 30px;
             margin: 0 auto 10px;
         }
+
+        /* MR List Styles */
+        .mr-list-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .mr-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .mr-list-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .mr-filter-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn-group {
+            display: flex;
+            gap: 5px;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .filter-btn-group button {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .filter-btn-group button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .mr-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .mr-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .mr-card.merged {
+            border-left-color: #9b59b6;
+        }
+
+        .mr-card.closed {
+            border-left-color: #e74c3c;
+        }
+
+        .mr-card.opened {
+            border-left-color: #28a745;
+        }
+
+        .mr-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .mr-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .mr-meta {
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .mr-meta a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .mr-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .mr-state-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .mr-state-badge.merged {
+            background: #e8d6f1;
+            color: #6f42c1;
+        }
+
+        .mr-state-badge.opened {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .mr-state-badge.closed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .mr-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pagination-buttons button {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        .pagination-buttons button:hover:not(:disabled) {
+            background: #f8f9fa;
+            transform: none;
+        }
+
+        .pagination-buttons button:disabled {
+            background: #f8f9fa;
+            color: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pagination-info {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .page-size-select {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .page-size-select select {
+            padding: 6px 10px;
+            min-width: auto;
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -588,6 +778,54 @@
                 <input type="number" id="recentCountInput" value="5" min="1" max="20" />
                 <input type="text" id="branchInput" placeholder="Branch (optional, e.g., main)" />
                 <button onclick="traceRecentCommits()" id="traceRecentBtn">Trace Recent Commits</button>
+            </div>
+        </div>
+
+        <!-- Merge Requests List Section -->
+        <div class="mr-list-section">
+            <div class="mr-list-header">
+                <h2>🔀 Merge Requests</h2>
+                <div class="mr-filter-controls">
+                    <div class="filter-btn-group">
+                        <button class="active" onclick="filterMRs('all')">All</button>
+                        <button onclick="filterMRs('opened')">Opened</button>
+                        <button onclick="filterMRs('merged')">Merged</button>
+                        <button onclick="filterMRs('closed')">Closed</button>
+                    </div>
+                    <button onclick="refreshMRList()" style="background: #667eea; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div id="mrListContent">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading merge requests...</p>
+                </div>
+            </div>
+
+            <div class="pagination-controls" id="mrPaginationControls" style="display: none;">
+                <div class="page-size-select">
+                    <label for="mrPageSize">Items per page:</label>
+                    <select id="mrPageSize" onchange="changeMRPageSize()">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <div class="pagination-info" id="mrPaginationInfo">
+                    Page 1 of 1
+                </div>
+
+                <div class="pagination-buttons">
+                    <button onclick="goToMRPage('first')" id="mrFirstBtn">⏮ First</button>
+                    <button onclick="goToMRPage('prev')" id="mrPrevBtn">← Previous</button>
+                    <button onclick="goToMRPage('next')" id="mrNextBtn">Next →</button>
+                    <button onclick="goToMRPage('last')" id="mrLastBtn">Last ⏭</button>
+                </div>
             </div>
         </div>
 
@@ -1409,6 +1647,228 @@
                 button.disabled = false;
                 button.textContent = '📋 Show Recent Commits';
             }
+        }
+
+        // =====================================================================
+        // Merge Requests List Functions
+        // =====================================================================
+
+        // MR List state
+        let mrListState = {
+            currentPage: 1,
+            pageSize: 20,
+            filterState: 'all',
+            totalPages: 1,
+            allMRs: [],
+            filteredMRs: [],
+        };
+
+        // Load MRs on page load
+        window.addEventListener('load', loadMRList);
+
+        async function loadMRList() {
+            const contentDiv = document.getElementById('mrListContent');
+
+            try {
+                contentDiv.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading merge requests...</p>
+                    </div>
+                `;
+
+                // Fetch all MRs (we'll get the first 100, GitLab API default pagination)
+                const response = await fetch(`${API_BASE}/merge-requests?per_page=100&state=all`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                mrListState.allMRs = data.mergeRequests || [];
+                mrListState.filteredMRs = mrListState.allMRs;
+
+                renderMRList();
+            } catch (error) {
+                console.error('Failed to load MRs:', error);
+                contentDiv.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                        <h3 style="color: #e74c3c; margin-bottom: 10px;">Failed to load merge requests</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 20px;">${escapeHtml(error.message)}</p>
+                        <button onclick="loadMRList()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                            🔄 Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function filterMRs(state) {
+            mrListState.filterState = state;
+            mrListState.currentPage = 1;
+
+            // Update filter button states
+            document.querySelectorAll('.filter-btn-group button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Apply filter
+            if (state === 'all') {
+                mrListState.filteredMRs = mrListState.allMRs;
+            } else {
+                mrListState.filteredMRs = mrListState.allMRs.filter(mr => mr.state === state);
+            }
+
+            renderMRList();
+        }
+
+        function renderMRList() {
+            const contentDiv = document.getElementById('mrListContent');
+            const paginationControls = document.getElementById('mrPaginationControls');
+
+            if (mrListState.filteredMRs.length === 0) {
+                const stateText = mrListState.filterState === 'all'
+                    ? 'merge requests'
+                    : `${mrListState.filterState} merge requests`;
+
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">🔀</div>
+                        <h3 style="color: #7f8c8d; margin-bottom: 10px;">No ${stateText} found</h3>
+                        <p style="color: #95a5a6;">
+                            ${mrListState.filterState === 'all'
+                                ? 'There are no merge requests in this project yet.'
+                                : `Try selecting a different filter or create a new merge request.`}
+                        </p>
+                    </div>
+                `;
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            // Calculate pagination
+            const startIndex = (mrListState.currentPage - 1) * mrListState.pageSize;
+            const endIndex = startIndex + mrListState.pageSize;
+            const paginatedMRs = mrListState.filteredMRs.slice(startIndex, endIndex);
+            mrListState.totalPages = Math.ceil(mrListState.filteredMRs.length / mrListState.pageSize);
+
+            // Render MR cards
+            const mrHtml = paginatedMRs.map(mr => {
+                const createdDate = new Date(mr.created_at);
+                const updatedDate = new Date(mr.updated_at);
+
+                return `
+                    <div class="mr-card ${mr.state}">
+                        <div class="mr-card-header">
+                            <div style="flex: 1;">
+                                <div class="mr-title">
+                                    <a href="${mr.web_url}" target="_blank" style="color: #2c3e50; text-decoration: none;">
+                                        !${mr.iid}: ${escapeHtml(mr.title)}
+                                    </a>
+                                </div>
+                                <div class="mr-meta">
+                                    <a href="${mr.web_url}" target="_blank">!${mr.iid}</a>
+                                    • ${escapeHtml(mr.author?.name || 'Unknown')}
+                                    • Created ${createdDate.toLocaleDateString()}
+                                    ${mr.merged_at ? `• Merged ${new Date(mr.merged_at).toLocaleDateString()}` : ''}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="mr-state-badge ${mr.state}">
+                                    ${mr.state === 'merged' ? '🟣 Merged' : mr.state === 'opened' ? '🟢 Open' : '🔴 Closed'}
+                                </span>
+                            </div>
+                        </div>
+
+                        ${mr.description ? `
+                            <div style="margin-top: 10px; font-size: 0.9em; color: #7f8c8d; line-height: 1.5;">
+                                ${escapeHtml(mr.description.substring(0, 200))}${mr.description.length > 200 ? '...' : ''}
+                            </div>
+                        ` : ''}
+
+                        <div class="mr-stats">
+                            <div><strong>Source:</strong> ${escapeHtml(mr.source_branch)}</div>
+                            <div><strong>Target:</strong> ${escapeHtml(mr.target_branch)}</div>
+                            ${mr.upvotes !== undefined ? `<div>👍 ${mr.upvotes}</div>` : ''}
+                            ${mr.downvotes !== undefined ? `<div>👎 ${mr.downvotes}</div>` : ''}
+                            <div>💬 ${mr.user_notes_count || 0} comments</div>
+                            <div>Updated ${updatedDate.toLocaleDateString()}</div>
+                        </div>
+
+                        ${mr.labels && mr.labels.length > 0 ? `
+                            <div style="margin-top: 10px;">
+                                ${mr.labels.map(label => `<span class="label-tag">${escapeHtml(label)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            contentDiv.innerHTML = `
+                <div style="margin-bottom: 15px; color: #7f8c8d; font-size: 0.9em;">
+                    Showing ${startIndex + 1}-${Math.min(endIndex, mrListState.filteredMRs.length)} of ${mrListState.filteredMRs.length} merge requests
+                </div>
+                ${mrHtml}
+            `;
+
+            // Update pagination controls
+            updateMRPaginationControls();
+            paginationControls.style.display = 'flex';
+        }
+
+        function updateMRPaginationControls() {
+            const paginationInfo = document.getElementById('mrPaginationInfo');
+            const firstBtn = document.getElementById('mrFirstBtn');
+            const prevBtn = document.getElementById('mrPrevBtn');
+            const nextBtn = document.getElementById('mrNextBtn');
+            const lastBtn = document.getElementById('mrLastBtn');
+
+            paginationInfo.textContent = `Page ${mrListState.currentPage} of ${mrListState.totalPages}`;
+
+            // Disable/enable buttons based on current page
+            firstBtn.disabled = mrListState.currentPage === 1;
+            prevBtn.disabled = mrListState.currentPage === 1;
+            nextBtn.disabled = mrListState.currentPage === mrListState.totalPages;
+            lastBtn.disabled = mrListState.currentPage === mrListState.totalPages;
+        }
+
+        function goToMRPage(direction) {
+            switch (direction) {
+                case 'first':
+                    mrListState.currentPage = 1;
+                    break;
+                case 'prev':
+                    if (mrListState.currentPage > 1) {
+                        mrListState.currentPage--;
+                    }
+                    break;
+                case 'next':
+                    if (mrListState.currentPage < mrListState.totalPages) {
+                        mrListState.currentPage++;
+                    }
+                    break;
+                case 'last':
+                    mrListState.currentPage = mrListState.totalPages;
+                    break;
+            }
+
+            renderMRList();
+
+            // Scroll to top of MR list
+            document.querySelector('.mr-list-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function changeMRPageSize() {
+            const select = document.getElementById('mrPageSize');
+            mrListState.pageSize = parseInt(select.value);
+            mrListState.currentPage = 1; // Reset to first page
+            renderMRList();
+        }
+
+        function refreshMRList() {
+            loadMRList();
         }
     </script>
 
