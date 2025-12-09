@@ -821,6 +821,54 @@
             </div>
         </div>
 
+        <!-- Recent Commits from Database Section -->
+        <div class="mr-list-section">
+            <div class="mr-list-header">
+                <div style="display: flex; align-items: center;">
+                    <h2>📦 Recent Commits</h2>
+                    <button class="toggle-btn expanded" onclick="toggleCommitsSection(this)" title="Expand/Collapse">
+                        ▼
+                    </button>
+                </div>
+                <div class="mr-filter-controls">
+                    <button onclick="refreshCommitsList()" style="background: #667eea; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapsible-content expanded" id="commitsCollapsibleContent">
+                <div id="commitsListContent">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading recent commits from database...</p>
+                    </div>
+                </div>
+
+                <div class="pagination-controls" id="commitsPaginationControls" style="display: none;">
+                    <div class="page-size-select">
+                        <label for="commitsPageSize">Items per page:</label>
+                        <select id="commitsPageSize" onchange="changeCommitsPageSize()">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+
+                    <div class="pagination-info" id="commitsPaginationInfo">
+                        Page 1 of 1
+                    </div>
+
+                    <div class="pagination-buttons">
+                        <button onclick="goToCommitsPage('first')" id="commitsFirstBtn">⏮ First</button>
+                        <button onclick="goToCommitsPage('prev')" id="commitsPrevBtn">← Previous</button>
+                        <button onclick="goToCommitsPage('next')" id="commitsNextBtn">Next →</button>
+                        <button onclick="goToCommitsPage('last')" id="commitsLastBtn">Last ⏭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Merge Requests List Section -->
         <div class="mr-list-section">
             <div class="mr-list-header">
@@ -1990,6 +2038,239 @@
             } else {
                 content.classList.add('expanded');
                 button.classList.add('expanded');
+            }
+        }
+
+        // =====================================================================
+        // Recent Commits List Functions
+        // =====================================================================
+
+        // Commits List state
+        let commitsListState = {
+            currentPage: 1,
+            pageSize: 10,
+            totalPages: 1,
+            allCommits: [],
+        };
+
+        // Load commits on page load
+        window.addEventListener('load', loadCommitsList);
+
+        async function loadCommitsList() {
+            const contentDiv = document.getElementById('commitsListContent');
+
+            try {
+                contentDiv.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading recent commits from database...</p>
+                    </div>
+                `;
+
+                // Fetch commits from database
+                const response = await fetch(`${API_BASE}/commits/db/recent?limit=100&offset=0`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                commitsListState.allCommits = data.commits || [];
+
+                // Show message if database is empty
+                if (commitsListState.allCommits.length === 0) {
+                    contentDiv.innerHTML = `
+                        <div style="padding: 60px 20px; text-align: center;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">📦</div>
+                            <h3 style="color: #7f8c8d; margin-bottom: 10px;">No commits in database yet</h3>
+                            <p style="color: #95a5a6; margin-bottom: 20px;">
+                                Trace commits using the controls above to build your commit history.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                renderCommitsList();
+            } catch (error) {
+                console.error('Failed to load commits:', error);
+                contentDiv.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                        <h3 style="color: #e74c3c; margin-bottom: 10px;">Failed to load commits</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 20px;">${escapeHtml(error.message)}</p>
+                        <button onclick="loadCommitsList()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                            🔄 Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderCommitsList() {
+            const contentDiv = document.getElementById('commitsListContent');
+            const paginationControls = document.getElementById('commitsPaginationControls');
+
+            if (commitsListState.allCommits.length === 0) {
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">📦</div>
+                        <h3 style="color: #7f8c8d; margin-bottom: 10px;">No commits found</h3>
+                        <p style="color: #95a5a6;">
+                            Trace commits using the controls above to build your commit history.
+                        </p>
+                    </div>
+                `;
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            // Calculate pagination
+            const startIndex = (commitsListState.currentPage - 1) * commitsListState.pageSize;
+            const endIndex = startIndex + commitsListState.pageSize;
+            const paginatedCommits = commitsListState.allCommits.slice(startIndex, endIndex);
+            commitsListState.totalPages = Math.ceil(commitsListState.allCommits.length / commitsListState.pageSize);
+
+            // Render commit cards
+            const commitsHtml = paginatedCommits.map(commit => {
+                const authoredDate = new Date(commit.authoredDate || commit.authored_date);
+                const committedDate = new Date(commit.committedDate || commit.committed_date);
+                const webUrl = commit.webUrl || commit.web_url;
+                const authorName = commit.authorName || commit.author_name || 'Unknown';
+                const authorEmail = commit.authorEmail || commit.author_email || '';
+                const shortId = commit.shortId || commit.short_id || commit.sha.substring(0, 8);
+
+                return `
+                    <div class="mr-card">
+                        <div class="mr-card-header">
+                            <div style="flex: 1;">
+                                <div class="mr-title">
+                                    <a href="${webUrl}" target="_blank" style="color: #2c3e50; text-decoration: none;">
+                                        ${escapeHtml(commit.title)}
+                                    </a>
+                                </div>
+                                <div class="mr-meta">
+                                    <code>${shortId}</code>
+                                    • ${escapeHtml(authorName)}
+                                    ${authorEmail ? `<${escapeHtml(authorEmail)}>` : ''}
+                                    • Authored ${authoredDate.toLocaleDateString()} ${authoredDate.toLocaleTimeString()}
+                                </div>
+                            </div>
+                            <div>
+                                <button onclick="loadCommitTrace('${commit.sha}')" style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em;">
+                                    🔍 View Trace
+                                </button>
+                            </div>
+                        </div>
+
+                        ${commit.message ? `
+                            <div style="margin-top: 10px; font-size: 0.9em; color: #7f8c8d; line-height: 1.5; white-space: pre-wrap;">
+                                ${escapeHtml(commit.message.substring(0, 300))}${commit.message.length > 300 ? '...' : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            contentDiv.innerHTML = `
+                <div style="margin-bottom: 15px; color: #7f8c8d; font-size: 0.9em;">
+                    Showing ${startIndex + 1}-${Math.min(endIndex, commitsListState.allCommits.length)} of ${commitsListState.allCommits.length} commits
+                </div>
+                ${commitsHtml}
+            `;
+
+            // Update pagination controls
+            updateCommitsPaginationControls();
+            paginationControls.style.display = 'flex';
+        }
+
+        function updateCommitsPaginationControls() {
+            const paginationInfo = document.getElementById('commitsPaginationInfo');
+            const firstBtn = document.getElementById('commitsFirstBtn');
+            const prevBtn = document.getElementById('commitsPrevBtn');
+            const nextBtn = document.getElementById('commitsNextBtn');
+            const lastBtn = document.getElementById('commitsLastBtn');
+
+            paginationInfo.textContent = `Page ${commitsListState.currentPage} of ${commitsListState.totalPages}`;
+
+            // Disable/enable buttons based on current page
+            firstBtn.disabled = commitsListState.currentPage === 1;
+            prevBtn.disabled = commitsListState.currentPage === 1;
+            nextBtn.disabled = commitsListState.currentPage === commitsListState.totalPages;
+            lastBtn.disabled = commitsListState.currentPage === commitsListState.totalPages;
+        }
+
+        function goToCommitsPage(direction) {
+            switch (direction) {
+                case 'first':
+                    commitsListState.currentPage = 1;
+                    break;
+                case 'prev':
+                    if (commitsListState.currentPage > 1) {
+                        commitsListState.currentPage--;
+                    }
+                    break;
+                case 'next':
+                    if (commitsListState.currentPage < commitsListState.totalPages) {
+                        commitsListState.currentPage++;
+                    }
+                    break;
+                case 'last':
+                    commitsListState.currentPage = commitsListState.totalPages;
+                    break;
+            }
+
+            renderCommitsList();
+
+            // Scroll to top of commits list
+            document.getElementById('commitsCollapsibleContent').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function changeCommitsPageSize() {
+            const select = document.getElementById('commitsPageSize');
+            commitsListState.pageSize = parseInt(select.value);
+            commitsListState.currentPage = 1; // Reset to first page
+            renderCommitsList();
+        }
+
+        function refreshCommitsList() {
+            loadCommitsList();
+        }
+
+        function toggleCommitsSection(button) {
+            const content = document.getElementById('commitsCollapsibleContent');
+            const isExpanded = content.classList.contains('expanded');
+
+            if (isExpanded) {
+                content.classList.remove('expanded');
+                button.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                button.classList.add('expanded');
+            }
+        }
+
+        async function loadCommitTrace(sha) {
+            // Scroll to results section
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+            // Load the trace for this commit
+            try {
+                const response = await fetch(`${API_BASE}/trace/commit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sha, forceRefresh: false })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const chain = await response.json();
+                currentTraceData = { chains: [chain], summary: null };
+                renderTraceResults();
+            } catch (error) {
+                alert('Failed to load commit trace: ' + error.message);
             }
         }
     </script>

@@ -387,6 +387,34 @@ app.get('/api/commits/:sha', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/commits/db/recent
+ * Get recent commits from the database with full trace data
+ */
+app.get('/api/commits/db/recent', async (req: Request, res: Response) => {
+  try {
+    const { getRecentCommits } = await import('../db/repositories/commit-repository');
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    // Get recent commits from database
+    const commits = await getRecentCommits(limit + offset);
+    const paginatedCommits = commits.slice(offset, offset + limit);
+
+    res.json({
+      commits: paginatedCommits,
+      pagination: {
+        limit,
+        offset,
+        total: commits.length,
+        hasMore: commits.length > offset + limit,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/trace/commit
  * Trace a single commit
  * Body: { sha: string, projectId?: string, forceRefresh?: boolean }
