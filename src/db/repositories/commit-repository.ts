@@ -279,3 +279,68 @@ export async function getRecentCommits(limit: number = 50) {
     .orderBy(desc(commits.discoveredAt))
     .limit(limit);
 }
+
+/**
+ * Get complete commit chain with all related entities (MRs, Issues, Epics, Analysis, Updates)
+ * This reconstructs the CommitChain type from persisted data
+ */
+export async function getCompleteCommitChain(sha: string) {
+  // Import necessary types and repositories
+  const { mergeRequests, issues, epics, analyses, stakeholderUpdates } = await import('../schema');
+  const { inArray } = await import('drizzle-orm');
+
+  // 1. Get the commit
+  const commit = await getCommitBySha(sha);
+  if (!commit) {
+    return null;
+  }
+
+  // 2. Get the commit chain metadata
+  const chain = await getCommitChainBySha(sha);
+  if (!chain) {
+    return null;
+  }
+
+  // 3. Get all related merge requests
+  const mrs =
+    chain.mergeRequestIds && chain.mergeRequestIds.length > 0
+      ? await db.select().from(mergeRequests).where(inArray(mergeRequests.id, chain.mergeRequestIds))
+      : [];
+
+  // 4. Get all related issues
+  const issuesList =
+    chain.issueIds && chain.issueIds.length > 0
+      ? await db.select().from(issues).where(inArray(issues.id, chain.issueIds))
+      : [];
+
+  // 5. Get all related epics
+  const epicsList =
+    chain.epicIds && chain.epicIds.length > 0
+      ? await db.select().from(epics).where(inArray(epics.id, chain.epicIds))
+      : [];
+
+  // 6. Get analysis and updates if they exist
+  const analysis = await db
+    .select()
+    .from(analyses)
+    .where(eq(analyses.commitSha, sha))
+    .limit(1)
+    .then((res) => res[0] || null);
+
+  const updates = await db
+    .select()
+    .from(stakeholderUpdates)
+    .where(eq(stakeholderUpdates.commitSha, sha))
+    .limit(1)
+    .then((res) => res[0] || null);
+
+  return {
+    commit,
+    chain,
+    mergeRequests: mrs,
+    issues: issuesList,
+    epics: epicsList,
+    analysis,
+    updates,
+  };
+}

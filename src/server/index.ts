@@ -389,20 +389,70 @@ app.get('/api/commits/:sha', async (req: Request, res: Response) => {
 /**
  * POST /api/trace/commit
  * Trace a single commit
- * Body: { sha: string, projectId?: string }
+ * Body: { sha: string, projectId?: string, forceRefresh?: boolean }
+ *
+ * If forceRefresh=false (default), checks database first and returns cached data if available.
+ * If forceRefresh=true, always fetches fresh data from GitLab API.
  */
 app.post('/api/trace/commit', async (req: Request, res: Response) => {
   try {
-    const { sha, projectId } = req.body;
+    const { sha, projectId, forceRefresh = false } = req.body;
 
     if (!sha) {
       return res.status(400).json({ error: 'sha is required' });
     }
 
+    // Check database first unless force refresh is requested
+    if (!forceRefresh) {
+      const { getCompleteCommitChain } = await import('../db/repositories/commit-repository');
+      const cachedData = await getCompleteCommitChain(sha);
+
+      if (cachedData && cachedData.chain.isComplete) {
+        console.log(`✅ Returning cached commit chain for ${sha.substring(0, 8)}`);
+
+        // Transform database format to match tracer CommitChain format
+        const response = {
+          commit: cachedData.commit,
+          mergeRequests: cachedData.mergeRequests.map((mr) => ({
+            mergeRequest: mr,
+            closesIssues: [],
+            containsCommit: true,
+          })),
+          issues: cachedData.issues.map((issue) => ({
+            issue: issue,
+            relatedMergeRequests: [],
+          })),
+          epics: cachedData.epics,
+          metadata: {
+            isComplete: cachedData.chain.isComplete,
+            apiCallCount: cachedData.chain.apiCallCount || 0,
+            durationMs: cachedData.chain.durationMs || 0,
+            warnings: cachedData.chain.warnings || [],
+          },
+          _fromCache: true,
+          _cachedAt: cachedData.chain.tracedAt,
+        };
+
+        return res.json(response);
+      }
+    }
+
+    // If not in cache or force refresh, trace from GitLab
+    console.log(`🔄 Tracing commit ${sha.substring(0, 8)} from GitLab...`);
     const tracer = getTracer();
     const chain = await tracer.traceCommit(sha, projectId);
 
-    return res.json(chain);
+    // Persist the traced chain
+    await persistCommitChain({
+      commitSha: sha,
+      projectId: projectId || process.env.GITLAB_PROJECT_ID || '',
+      chain,
+    });
+
+    return res.json({
+      ...chain,
+      _fromCache: false,
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

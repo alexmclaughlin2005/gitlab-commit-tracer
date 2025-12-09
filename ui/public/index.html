@@ -276,6 +276,17 @@
             font-weight: 500;
         }
 
+        .cache-badge {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-left: 5px;
+            font-weight: 500;
+            font-size: 0.85em;
+        }
+
         .chain-flow {
             display: flex;
             align-items: center;
@@ -679,6 +690,32 @@
             min-width: auto;
             width: auto;
         }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.expanded {
+            max-height: 10000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+            margin-left: 10px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-btn.expanded {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 <body>
@@ -771,6 +808,9 @@
 
             <div class="control-group">
                 <input type="text" id="commitShaInput" placeholder="Enter commit SHA (e.g., abc123...)" />
+                <label style="margin-left: 10px; font-size: 14px;">
+                    <input type="checkbox" id="forceRefreshCheck" /> Force Refresh
+                </label>
                 <button onclick="traceSingleCommit()" id="traceSingleBtn">Trace Single Commit</button>
             </div>
 
@@ -784,7 +824,12 @@
         <!-- Merge Requests List Section -->
         <div class="mr-list-section">
             <div class="mr-list-header">
-                <h2>🔀 Merge Requests</h2>
+                <div style="display: flex; align-items: center;">
+                    <h2>🔀 Merge Requests</h2>
+                    <button class="toggle-btn" onclick="toggleMRSection(this)" title="Expand/Collapse">
+                        ▼
+                    </button>
+                </div>
                 <div class="mr-filter-controls">
                     <div class="filter-btn-group">
                         <button class="active" onclick="filterMRs('all')">All</button>
@@ -801,14 +846,15 @@
                 </div>
             </div>
 
-            <div id="mrListContent">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Loading merge requests...</p>
+            <div class="collapsible-content" id="mrCollapsibleContent">
+                <div id="mrListContent">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading merge requests...</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="pagination-controls" id="mrPaginationControls" style="display: none;">
+                <div class="pagination-controls" id="mrPaginationControls" style="display: none;">
                 <div class="page-size-select">
                     <label for="mrPageSize">Items per page:</label>
                     <select id="mrPageSize" onchange="changeMRPageSize()">
@@ -828,6 +874,7 @@
                     <button onclick="goToMRPage('prev')" id="mrPrevBtn">← Previous</button>
                     <button onclick="goToMRPage('next')" id="mrNextBtn">Next →</button>
                     <button onclick="goToMRPage('last')" id="mrLastBtn">Last ⏭</button>
+                </div>
                 </div>
             </div>
         </div>
@@ -882,13 +929,14 @@
                 return;
             }
 
+            const forceRefresh = document.getElementById('forceRefreshCheck').checked;
             setLoading(true);
 
             try {
                 const response = await fetch(`${API_BASE}/trace/commit`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sha })
+                    body: JSON.stringify({ sha, forceRefresh })
                 });
 
                 if (!response.ok) {
@@ -973,6 +1021,8 @@
         function renderChain(chain) {
             const commit = chain.commit;
             const metadata = chain.metadata;
+            const fromCache = chain._fromCache || false;
+            const cachedAt = chain._cachedAt ? new Date(chain._cachedAt) : null;
 
             let html = `
                 <div class="chain-card">
@@ -983,6 +1033,7 @@
                                 <code>${commit.short_id}</code> •
                                 ${commit.author_name} •
                                 ${new Date(commit.created_at).toLocaleString()}
+                                ${fromCache ? `<span class="cache-badge">💾 From Cache (${cachedAt ? cachedAt.toLocaleString() : 'cached'})</span>` : ''}
                             </div>
                         </div>
                         <div class="chain-stats">
@@ -1927,6 +1978,19 @@
 
         function refreshMRList() {
             loadMRList();
+        }
+
+        function toggleMRSection(button) {
+            const content = document.getElementById('mrCollapsibleContent');
+            const isExpanded = content.classList.contains('expanded');
+
+            if (isExpanded) {
+                content.classList.remove('expanded');
+                button.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                button.classList.add('expanded');
+            }
         }
     </script>
 
