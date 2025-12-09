@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1765296873253,
+      "tag": "0000_add_mr_fields",
+      "breakpoints": true
+    }
+  ]
+}

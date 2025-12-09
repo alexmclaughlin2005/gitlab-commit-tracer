@@ -792,6 +792,9 @@
                         <button onclick="filterMRs('merged')">Merged</button>
                         <button onclick="filterMRs('closed')">Closed</button>
                     </div>
+                    <button onclick="syncMRsFromGitLab()" style="background: #28a745; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em;">
+                        🔄 Sync from GitLab
+                    </button>
                     <button onclick="refreshMRList()" style="background: #667eea; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em;">
                         🔄 Refresh
                     </button>
@@ -1673,12 +1676,12 @@
                 contentDiv.innerHTML = `
                     <div class="loading">
                         <div class="spinner"></div>
-                        <p>Loading merge requests...</p>
+                        <p>Loading merge requests from database...</p>
                     </div>
                 `;
 
-                // Fetch all MRs (we'll get the first 100, GitLab API default pagination)
-                const response = await fetch(`${API_BASE}/merge-requests?per_page=100&state=all`);
+                // Fetch MRs from database (supports unlimited via pagination)
+                const response = await fetch(`${API_BASE}/merge-requests/db?limit=1000&state=all`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1687,6 +1690,21 @@
                 const data = await response.json();
                 mrListState.allMRs = data.mergeRequests || [];
                 mrListState.filteredMRs = mrListState.allMRs;
+
+                // Show message if database is empty
+                if (mrListState.allMRs.length === 0) {
+                    contentDiv.innerHTML = `
+                        <div style="padding: 60px 20px; text-align: center;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">📦</div>
+                            <h3 style="color: #7f8c8d; margin-bottom: 10px;">No merge requests in database</h3>
+                            <p style="color: #95a5a6; margin-bottom: 20px;">Click "Sync from GitLab" to fetch and store merge requests from your GitLab project.</p>
+                            <button onclick="syncMRsFromGitLab()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                                🔄 Sync from GitLab
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
 
                 renderMRList();
             } catch (error) {
@@ -1701,6 +1719,37 @@
                         </button>
                     </div>
                 `;
+            }
+        }
+
+        async function syncMRsFromGitLab() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = '⏳ Syncing...';
+
+            try {
+                const response = await fetch(`${API_BASE}/merge-requests/sync`, {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                // Show success message
+                alert(`✅ Successfully synced ${result.synced} merge requests from GitLab!`);
+
+                // Reload the list
+                await loadMRList();
+            } catch (error) {
+                console.error('Failed to sync MRs:', error);
+                alert(`❌ Failed to sync merge requests: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
             }
         }
 
@@ -1756,23 +1805,32 @@
 
             // Render MR cards
             const mrHtml = paginatedMRs.map(mr => {
-                const createdDate = new Date(mr.created_at);
-                const updatedDate = new Date(mr.updated_at);
+                const createdDate = new Date(mr.createdAt || mr.created_at);
+                const updatedDate = new Date(mr.updatedAt || mr.updated_at);
+                const mergedAt = mr.mergedAt || mr.merged_at;
+                const webUrl = mr.webUrl || mr.web_url;
+                const sourceBranch = mr.sourceBranch || mr.source_branch;
+                const targetBranch = mr.targetBranch || mr.target_branch;
+                const authorName = mr.authorName || mr.author?.name || 'Unknown';
+                const labels = mr.labels || [];
+                const upvotes = mr.upvotes !== undefined ? mr.upvotes : (mr.upvotes !== undefined ? mr.upvotes : 0);
+                const downvotes = mr.downvotes !== undefined ? mr.downvotes : (mr.downvotes !== undefined ? mr.downvotes : 0);
+                const userNotesCount = mr.userNotesCount || mr.user_notes_count || 0;
 
                 return `
                     <div class="mr-card ${mr.state}">
                         <div class="mr-card-header">
                             <div style="flex: 1;">
                                 <div class="mr-title">
-                                    <a href="${mr.web_url}" target="_blank" style="color: #2c3e50; text-decoration: none;">
+                                    <a href="${webUrl}" target="_blank" style="color: #2c3e50; text-decoration: none;">
                                         !${mr.iid}: ${escapeHtml(mr.title)}
                                     </a>
                                 </div>
                                 <div class="mr-meta">
-                                    <a href="${mr.web_url}" target="_blank">!${mr.iid}</a>
-                                    • ${escapeHtml(mr.author?.name || 'Unknown')}
+                                    <a href="${webUrl}" target="_blank">!${mr.iid}</a>
+                                    • ${escapeHtml(authorName)}
                                     • Created ${createdDate.toLocaleDateString()}
-                                    ${mr.merged_at ? `• Merged ${new Date(mr.merged_at).toLocaleDateString()}` : ''}
+                                    ${mergedAt ? `• Merged ${new Date(mergedAt).toLocaleDateString()}` : ''}
                                 </div>
                             </div>
                             <div>
@@ -1789,17 +1847,17 @@
                         ` : ''}
 
                         <div class="mr-stats">
-                            <div><strong>Source:</strong> ${escapeHtml(mr.source_branch)}</div>
-                            <div><strong>Target:</strong> ${escapeHtml(mr.target_branch)}</div>
-                            ${mr.upvotes !== undefined ? `<div>👍 ${mr.upvotes}</div>` : ''}
-                            ${mr.downvotes !== undefined ? `<div>👎 ${mr.downvotes}</div>` : ''}
-                            <div>💬 ${mr.user_notes_count || 0} comments</div>
+                            ${sourceBranch ? `<div><strong>Source:</strong> ${escapeHtml(sourceBranch)}</div>` : ''}
+                            ${targetBranch ? `<div><strong>Target:</strong> ${escapeHtml(targetBranch)}</div>` : ''}
+                            <div>👍 ${upvotes}</div>
+                            <div>👎 ${downvotes}</div>
+                            <div>💬 ${userNotesCount} comments</div>
                             <div>Updated ${updatedDate.toLocaleDateString()}</div>
                         </div>
 
-                        ${mr.labels && mr.labels.length > 0 ? `
+                        ${labels && labels.length > 0 ? `
                             <div style="margin-top: 10px;">
-                                ${mr.labels.map(label => `<span class="label-tag">${escapeHtml(label)}</span>`).join('')}
+                                ${labels.map(label => `<span class="label-tag">${escapeHtml(label)}</span>`).join('')}
                             </div>
                         ` : ''}
                     </div>

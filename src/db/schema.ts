@@ -107,6 +107,14 @@ export const mergeRequests = pgTable('merge_requests', {
   title: text('title').notNull(),
   description: text('description'),
   state: varchar('state', { length: 50 }),
+  sourceBranch: varchar('source_branch', { length: 255 }),
+  targetBranch: varchar('target_branch', { length: 255 }),
+  authorName: varchar('author_name', { length: 255 }),
+  authorUsername: varchar('author_username', { length: 255 }),
+  labels: text('labels').array(),
+  upvotes: integer('upvotes').default(0),
+  downvotes: integer('downvotes').default(0),
+  userNotesCount: integer('user_notes_count').default(0),
   mergedAt: timestamp('merged_at'),
   webUrl: text('web_url'),
   createdAt: timestamp('created_at'),
@@ -116,6 +124,7 @@ export const mergeRequests = pgTable('merge_requests', {
   projectIdx: index('idx_mrs_project').on(table.projectId),
   stateIdx: index('idx_mrs_state').on(table.state),
   mergedAtIdx: index('idx_mrs_merged_at').on(table.mergedAt),
+  authorIdx: index('idx_mrs_author').on(table.authorUsername),
 }));
 
 /**

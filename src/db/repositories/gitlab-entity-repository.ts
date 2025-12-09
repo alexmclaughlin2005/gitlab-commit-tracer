@@ -133,6 +133,14 @@ export interface SaveMergeRequestParams {
   title: string;
   description?: string;
   state?: string;
+  sourceBranch?: string;
+  targetBranch?: string;
+  authorName?: string;
+  authorUsername?: string;
+  labels?: string[];
+  upvotes?: number;
+  downvotes?: number;
+  userNotesCount?: number;
   webUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -149,6 +157,14 @@ export async function saveMergeRequest(params: SaveMergeRequestParams) {
       title: params.title,
       description: params.description,
       state: params.state,
+      sourceBranch: params.sourceBranch,
+      targetBranch: params.targetBranch,
+      authorName: params.authorName,
+      authorUsername: params.authorUsername,
+      labels: params.labels || [],
+      upvotes: params.upvotes,
+      downvotes: params.downvotes,
+      userNotesCount: params.userNotesCount,
       webUrl: params.webUrl,
       createdAt: params.createdAt,
       updatedAt: params.updatedAt,
@@ -160,6 +176,14 @@ export async function saveMergeRequest(params: SaveMergeRequestParams) {
         title: params.title,
         description: params.description,
         state: params.state,
+        sourceBranch: params.sourceBranch,
+        targetBranch: params.targetBranch,
+        authorName: params.authorName,
+        authorUsername: params.authorUsername,
+        labels: params.labels || [],
+        upvotes: params.upvotes,
+        downvotes: params.downvotes,
+        userNotesCount: params.userNotesCount,
         webUrl: params.webUrl,
         updatedAt: params.updatedAt,
         mergedAt: params.mergedAt,
@@ -185,6 +209,73 @@ export async function getMergeRequestsByProject(projectId: string) {
     .from(mergeRequests)
     .where(eq(mergeRequests.projectId, projectId))
     .orderBy(desc(mergeRequests.createdAt));
+}
+
+export interface GetAllMergeRequestsParams {
+  state?: 'opened' | 'closed' | 'merged' | 'all';
+  projectId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function getAllMergeRequests(params: GetAllMergeRequestsParams = {}) {
+  const { state, projectId, limit = 100, offset = 0 } = params;
+
+  let query = db.select().from(mergeRequests);
+
+  // Apply filters
+  const conditions = [];
+  if (projectId) {
+    conditions.push(eq(mergeRequests.projectId, projectId));
+  }
+  if (state && state !== 'all') {
+    conditions.push(eq(mergeRequests.state, state));
+  }
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+
+  // Apply ordering and pagination
+  const results = await query
+    .orderBy(desc(mergeRequests.updatedAt))
+    .limit(limit)
+    .offset(offset);
+
+  return results;
+}
+
+export async function getMergeRequestsCount(params: { state?: string; projectId?: string } = {}) {
+  const { state, projectId } = params;
+
+  let query = db.select({ count: mergeRequests.id }).from(mergeRequests);
+
+  const conditions = [];
+  if (projectId) {
+    conditions.push(eq(mergeRequests.projectId, projectId));
+  }
+  if (state && state !== 'all') {
+    conditions.push(eq(mergeRequests.state, state));
+  }
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+
+  const result = await query;
+  return result.length;
+}
+
+export async function saveMergeRequestBatch(mergeRequestsData: SaveMergeRequestParams[]) {
+  if (mergeRequestsData.length === 0) return [];
+
+  const results = [];
+  for (const mrData of mergeRequestsData) {
+    const result = await saveMergeRequest(mrData);
+    results.push(result);
+  }
+
+  return results;
 }
 
 // ============================================================================

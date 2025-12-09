@@ -501,6 +501,104 @@ app.get('/api/issues', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/merge-requests/sync
+ * Sync merge requests from GitLab to database
+ */
+app.post('/api/merge-requests/sync', async (req: Request, res: Response) => {
+  try {
+    const client = getClient();
+    const { saveMergeRequestBatch, saveProject } = await import('../db/repositories/gitlab-entity-repository');
+
+    // Get project info
+    const projectId = process.env.GITLAB_PROJECT_ID;
+    if (!projectId) {
+      return res.status(400).json({ error: 'GITLAB_PROJECT_ID not configured' });
+    }
+
+    // Save/update project first
+    await saveProject({
+      id: projectId,
+      name: projectId, // You can update this with actual project name
+      gitlabUrl: process.env.GITLAB_URL || 'https://gitlab.com',
+    });
+
+    // Fetch MRs from GitLab API
+    console.log('Fetching merge requests from GitLab...');
+    const result = await client.listMergeRequests(undefined, {
+      per_page: 100,
+      state: 'all',
+    });
+
+    const mrData = result.data.map(mr => ({
+      id: mr.id,
+      iid: mr.iid,
+      projectId: projectId,
+      title: mr.title,
+      description: mr.description,
+      state: mr.state,
+      sourceBranch: mr.source_branch,
+      targetBranch: mr.target_branch,
+      authorName: mr.author?.name,
+      authorUsername: mr.author?.username,
+      labels: mr.labels || [],
+      upvotes: mr.upvotes,
+      downvotes: mr.downvotes,
+      userNotesCount: mr.user_notes_count,
+      webUrl: mr.web_url,
+      createdAt: new Date(mr.created_at),
+      updatedAt: new Date(mr.updated_at),
+      mergedAt: mr.merged_at ? new Date(mr.merged_at) : undefined,
+    }));
+
+    // Save to database
+    console.log(`Saving ${mrData.length} merge requests to database...`);
+    await saveMergeRequestBatch(mrData);
+
+    res.json({
+      success: true,
+      synced: mrData.length,
+      message: `Successfully synced ${mrData.length} merge requests`,
+    });
+  } catch (error: any) {
+    console.error('Error syncing merge requests:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/merge-requests/db
+ * Get merge requests from database with pagination and filtering
+ */
+app.get('/api/merge-requests/db', async (req: Request, res: Response) => {
+  try {
+    const { getAllMergeRequests, getMergeRequestsCount } = await import('../db/repositories/gitlab-entity-repository');
+
+    const state = req.query.state as 'opened' | 'closed' | 'merged' | 'all' | undefined;
+    const projectId = req.query.projectId as string | undefined;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const [mergeRequests, total] = await Promise.all([
+      getAllMergeRequests({ state, projectId, limit, offset }),
+      getMergeRequestsCount({ state, projectId }),
+    ]);
+
+    res.json({
+      mergeRequests,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching merge requests from database:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/analyze/updates
  * Generate stakeholder updates for a commit chain
  * Body: { chain: CommitChain }
