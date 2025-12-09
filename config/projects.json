@@ -14,7 +14,7 @@
   ],
   "global": {
     "pollIntervalSeconds": 300,
-    "maxCommitsPerPoll": 20,
+    "maxCommitsPerPoll": 50,
     "enableNotifications": false,
     "storageLocation": "./data/monitor"
   }

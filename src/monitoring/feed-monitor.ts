@@ -293,14 +293,14 @@ export class FeedMonitor extends EventEmitter {
       // The first commit is the most recent
       const latestCommit = commits[0];
 
-      // If this is the first time polling, fetch and emit the 5 most recent commits
+      // If this is the first time polling, fetch and emit the 50 most recent commits
       if (!state.lastCommitSha) {
         console.log(
-          `📌 Initial poll for ${project.name}:${branch} - fetching 5 most recent commits`
+          `📌 Initial poll for ${project.name}:${branch} - fetching 50 most recent commits`
         );
 
-        // Take the first 5 commits (or fewer if less are available)
-        const recentCommits = commits.slice(0, Math.min(5, commits.length));
+        // Take the first 50 commits (or fewer if less are available)
+        const recentCommits = commits.slice(0, Math.min(50, commits.length));
 
         console.log(
           `✨ Loading ${recentCommits.length} recent commit(s) for ${project.name}:${branch}`
