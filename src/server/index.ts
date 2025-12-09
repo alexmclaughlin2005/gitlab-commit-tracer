@@ -504,7 +504,7 @@ app.get('/api/issues', async (req: Request, res: Response) => {
  * POST /api/merge-requests/sync
  * Sync merge requests from GitLab to database
  */
-app.post('/api/merge-requests/sync', async (req: Request, res: Response) => {
+app.post('/api/merge-requests/sync', async (_req: Request, res: Response) => {
   try {
     const client = getClient();
     const { saveMergeRequestBatch, saveProject } = await import('../db/repositories/gitlab-entity-repository');
@@ -534,7 +534,7 @@ app.post('/api/merge-requests/sync', async (req: Request, res: Response) => {
       iid: mr.iid,
       projectId: projectId,
       title: mr.title,
-      description: mr.description,
+      description: mr.description || undefined,
       state: mr.state,
       sourceBranch: mr.source_branch,
       targetBranch: mr.target_branch,
@@ -554,14 +554,14 @@ app.post('/api/merge-requests/sync', async (req: Request, res: Response) => {
     console.log(`Saving ${mrData.length} merge requests to database...`);
     await saveMergeRequestBatch(mrData);
 
-    res.json({
+    return res.json({
       success: true,
       synced: mrData.length,
       message: `Successfully synced ${mrData.length} merge requests`,
     });
   } catch (error: any) {
     console.error('Error syncing merge requests:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
